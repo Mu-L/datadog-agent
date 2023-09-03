@@ -3,21 +3,17 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package main
+package command
 
 import (
 	"context"
 	"fmt"
-	_ "net/http/pprof"
 	"os"
 
 	"go.uber.org/fx"
 
 	"github.com/DataDog/datadog-agent/cmd/agent/common/misconfig"
-	"github.com/DataDog/datadog-agent/cmd/internal/runcmd"
 	"github.com/DataDog/datadog-agent/cmd/manager"
-	"github.com/DataDog/datadog-agent/cmd/process-agent/command"
-	"github.com/DataDog/datadog-agent/cmd/process-agent/subcommands"
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	logComponent "github.com/DataDog/datadog-agent/comp/core/log"
@@ -44,7 +40,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/tagger/local"
 	"github.com/DataDog/datadog-agent/pkg/tagger/remote"
 	ddutil "github.com/DataDog/datadog-agent/pkg/util"
-	"github.com/DataDog/datadog-agent/pkg/util/flavor"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/version"
@@ -60,17 +55,7 @@ to your datadog.yaml file.
 Exiting.`
 )
 
-// main is the main application entry point
-func main() {
-	flavor.SetFlavor(flavor.ProcessAgent)
-
-	os.Args = command.FixDeprecatedFlags(os.Args, os.Stdout)
-
-	rootCmd := command.MakeCommand(subcommands.ProcessAgentSubcommands(), useWinParams, rootCmdRun)
-	os.Exit(runcmd.Run(rootCmd))
-}
-
-func runAgent(ctx context.Context, globalParams *command.GlobalParams) error {
+func runAgent(ctx context.Context, globalParams *GlobalParams) error {
 	if globalParams.PidFilePath != "" {
 		err := pidfile.WritePID(globalParams.PidFilePath)
 		if err != nil {
@@ -96,7 +81,7 @@ func runAgent(ctx context.Context, globalParams *command.GlobalParams) error {
 	return runApp(ctx, globalParams)
 }
 
-func runApp(ctx context.Context, globalParams *command.GlobalParams) error {
+func runApp(ctx context.Context, globalParams *GlobalParams) error {
 	exitSignal := make(chan struct{})
 	defer log.Flush() // Flush the log in case of an unclean shutdown
 	go util.HandleSignals(exitSignal)
@@ -119,7 +104,7 @@ func runApp(ctx context.Context, globalParams *command.GlobalParams) error {
 				),
 				ConfigParams: config.NewAgentParams(globalParams.ConfFilePath),
 				SecretParams: secrets.NewEnabledParams(),
-				LogParams:    command.DaemonLogParams,
+				LogParams:    DaemonLogParams,
 			},
 		),
 		// Populate dependencies required for initialization in this function
@@ -152,7 +137,7 @@ func runApp(ctx context.Context, globalParams *command.GlobalParams) error {
 		fxutil.FxLoggingOption(),
 
 		// Set `HOST_PROC` and `HOST_SYS` environment variables
-		fx.Invoke(command.SetHostMountEnv),
+		fx.Invoke(SetHostMountEnv),
 
 		// Initialize components not manged by fx
 		fx.Invoke(initMisc),
