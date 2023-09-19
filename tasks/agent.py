@@ -21,6 +21,7 @@ from .docker_tasks import pull_base_images
 from .flavor import AgentFlavor
 from .go import deps
 from .process_agent import build as process_agent_build
+from .release import _get_release_json_value
 from .rtloader import clean as rtloader_clean
 from .rtloader import install as rtloader_install
 from .rtloader import make as rtloader_make
@@ -241,8 +242,8 @@ def refresh_assets(_, build_tags, development=True, flavor=AgentFlavor.base.name
         check_dir = os.path.join(dist_folder, f"conf.d/{check}.d/")
         copy_tree(f"./cmd/agent/dist/conf.d/{check}.d/", check_dir)
 
-    ## add additional windows-only corechecks, only on windows. Otherwise the check loader
-    ## on linux will throw an error because the module is not found, but the config is.
+    # add additional windows-only corechecks, only on windows. Otherwise the check loader
+    # on linux will throw an error because the module is not found, but the config is.
     if sys.platform == 'win32':
         for check in WINDOWS_CORECHECKS:
             check_dir = os.path.join(dist_folder, f"conf.d/{check}.d/")
@@ -721,6 +722,27 @@ def omnibus_build(
     with timed(quiet=True) as bundle_elapsed:
         bundle_install_omnibus(ctx, gem_path, env)
 
+    omnibus_cache_dir = os.environ.get('OMNIBUS_GIT_CACHE_DIR')
+    use_omnibus_git_cache = omnibus_cache_dir is not None
+    if use_omnibus_git_cache:
+        omnibus_cache_dir += '/opt/datadog-agent'
+        remote_cache_name = os.environ.get('CI_JOB_NAME_SLUG')
+        # We don't want to update the cache when not running on a CI
+        # Individual developers are still able to leverage the cache by providing
+        # the OMNIBUS_GIT_CACHE_DIR env variable, but they won't pull from the CI
+        # generated one.
+        use_remote_cache = remote_cache_name is not None
+        base_branch = _get_release_json_value("base_branch")
+        if use_remote_cache:
+            cache_state = None
+            git_cache_url = f"s3://{os.environ['S3_OMNIBUS_CACHE_BUCKET']}/builds/{base_branch}/{remote_cache_name}"
+            bundle_path = "/tmp/omnibus-git-cache-bundle"
+            with timed(quiet=True) as restore_cache:
+                # Allow failure in case the cache was evicted
+                if ctx.run(f"aws s3 cp --only-show-errors {git_cache_url} {bundle_path}", warn=True):
+                    ctx.run(f"git clone --mirror {bundle_path} {omnibus_cache_dir}")
+                    cache_state = ctx.run(f"git -C {omnibus_cache_dir} tag -l").stdout
+
     with timed(quiet=True) as omnibus_elapsed:
         omnibus_run_task(
             ctx=ctx,
@@ -732,6 +754,23 @@ def omnibus_build(
             log_level=log_level,
         )
 
+    if use_omnibus_git_cache and use_remote_cache:
+        with timed(quiet=True) as update_cache:
+            if base_branch == os.environ['CI_COMMIT_BRANCH']:
+                # Purge the cache manually as omnibus will stick to not restoring a tag when
+                # a mismatch is detected, but will keep the old cached tags.
+                # Do this before checking for tag differences, in order to remove staled tags
+                # in case they were included in the bundle in a previous build
+                # Allow the command to fail since an empty cache will cause a git reflog failure
+                stale_tags = ctx.run(f'git -C {omnibus_cache_dir} tag --no-merged', warn=True).stdout
+                for _, tag in enumerate(stale_tags.split(os.linesep)):
+                    ctx.run(f'git -C {omnibus_cache_dir} tag -d {tag}')
+                if ctx.run(f"git -C {omnibus_cache_dir} tag -l").stdout != cache_state:
+                    ctx.run(f"git -C {omnibus_cache_dir} bundle create {bundle_path} --tags")
+                    ctx.run(f"aws s3 cp --only-show-errors {bundle_path} {git_cache_url}")
+            else:
+                print("Not updating omnibus cache from a feature branch")
+
     # Delete the temporary pip.conf file once the build is done
     os.remove(pip_config_file)
 
@@ -740,6 +779,9 @@ def omnibus_build(
         print(f"Deps:    {deps_elapsed.duration}")
     print(f"Bundle:  {bundle_elapsed.duration}")
     print(f"Omnibus: {omnibus_elapsed.duration}")
+    if use_omnibus_git_cache and use_remote_cache:
+        print(f"Restoring omnibus cache: {restore_cache.duration}")
+        print(f"Updating omnibus cache: {update_cache.duration}")
 
 
 @task
