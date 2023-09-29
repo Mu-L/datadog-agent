@@ -13,7 +13,10 @@ import (
 	"sync"
 
 	manager "github.com/DataDog/ebpf-manager"
+	"github.com/cilium/ebpf"
+	"github.com/cilium/ebpf/ringbuf"
 
+	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/security/probe/config"
 	"github.com/DataDog/datadog-agent/pkg/security/probe/eventstream"
 )
@@ -23,6 +26,7 @@ import (
 type RingBuffer struct {
 	ringBuffer *manager.RingBuffer
 	handler    func(int, []byte)
+	record     ringbuf.Record
 }
 
 // Init the ring buffer
@@ -33,7 +37,10 @@ func (rb *RingBuffer) Init(mgr *manager.Manager, config *config.Config) error {
 	}
 
 	rb.ringBuffer.RingBufferOptions = manager.RingBufferOptions{
-		DataHandler: rb.handleEvent,
+		RecordHandler: rb.handleEvent,
+		RecordGetter: func() *ringbuf.Record {
+			return &rb.record
+		},
 	}
 
 	if config.EventStreamBufferSize != 0 {
@@ -51,8 +58,9 @@ func (rb *RingBuffer) Start(wg *sync.WaitGroup) error {
 // SetMonitor set the monitor
 func (rb *RingBuffer) SetMonitor(counter eventstream.LostEventCounter) {}
 
-func (rb *RingBuffer) handleEvent(CPU int, data []byte, ringBuffer *manager.RingBuffer, manager *manager.Manager) {
-	rb.handler(CPU, data)
+func (rb *RingBuffer) handleEvent(rec *ringbuf.Record, ringBuffer *manager.RingBuffer, _ *manager.Manager) {
+	ddebpf.ReportPerfMetrics(ringBuffer.Name, ebpf.RingBuf.String(), 0, rec.Remaining, ringBuffer.BufferSize())
+	rb.handler(0, rec.RawSample)
 }
 
 // Pause the event stream. Do nothing when using ring buffer

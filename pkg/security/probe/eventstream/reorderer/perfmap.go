@@ -17,8 +17,10 @@ import (
 
 	"github.com/DataDog/datadog-go/v5/statsd"
 	manager "github.com/DataDog/ebpf-manager"
+	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/perf"
 
+	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/security/probe/config"
 	"github.com/DataDog/datadog-agent/pkg/security/probe/eventstream"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
@@ -60,6 +62,7 @@ func (m *OrderedPerfMap) handleLostEvents(CPU int, count uint64, perfMap *manage
 	if m.lostEventCounter != nil {
 		m.lostEventCounter.CountLostEvent(count, perfMap.Name, CPU)
 	}
+	ddebpf.ReportPerfLost(perfMap.Name, ebpf.PerfEventArray.String(), CPU, count)
 }
 
 // SetMonitor set the monitor

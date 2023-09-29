@@ -10,6 +10,7 @@ package ebpf
 import (
 	"sync"
 
+	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/perf"
 
 	manager "github.com/DataDog/ebpf-manager"
@@ -59,6 +60,7 @@ func (c *PerfHandler) LostHandler(CPU int, lostCount uint64, perfMap *manager.Pe
 	if c.closed {
 		return
 	}
+	ReportPerfLost(perfMap.Name, ebpf.PerfEventArray.String(), CPU, lostCount)
 	c.LostChannel <- lostCount
 }
 
@@ -68,6 +70,7 @@ func (c *PerfHandler) RecordHandler(record *perf.Record, perfMap *manager.PerfMa
 		return
 	}
 
+	ReportPerfMetrics(perfMap.Name, ebpf.PerfEventArray.String(), record.CPU, record.Remaining, perfMap.BufferSize())
 	c.DataChannel <- &DataEvent{CPU: record.CPU, Data: record.RawSample, r: record}
 }
 

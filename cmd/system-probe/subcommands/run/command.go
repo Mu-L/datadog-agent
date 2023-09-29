@@ -281,6 +281,7 @@ func startSystemProbe(cliParams *cliParams, log log.Component, telemetry telemet
 		if cfg.TelemetryEnabled {
 			http.Handle("/telemetry", telemetry.Handler())
 			telemetry.RegisterCollector(ebpf.NewDebugFsStatCollector())
+			telemetry.RegisterCollector(ebpf.NewPerfUsageCollector())
 		}
 		go func() {
 			common.ExpvarServer = &http.Server{

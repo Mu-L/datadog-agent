@@ -14,7 +14,10 @@ import (
 	"time"
 
 	manager "github.com/DataDog/ebpf-manager"
+	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/perf"
+
+	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
 )
 
 type reOrdererNodePool struct {
@@ -249,6 +252,7 @@ func (r *ReOrderer) Start(wg *sync.WaitGroup) {
 
 // HandleEvent handle event form perf ring
 func (r *ReOrderer) HandleEvent(record *perf.Record, perfMap *manager.PerfMap, manager *manager.Manager) {
+	ddebpf.ReportPerfMetrics(perfMap.Name, ebpf.PerfEventArray.String(), record.CPU, record.Remaining, perfMap.BufferSize())
 	select {
 	case r.queue <- record:
 		return
