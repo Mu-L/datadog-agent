@@ -39,6 +39,7 @@ import (
 	logsAgent "github.com/DataDog/datadog-agent/comp/logs/agent"
 	"github.com/DataDog/datadog-agent/comp/metadata/host"
 	"github.com/DataDog/datadog-agent/comp/metadata/inventoryagent"
+	"github.com/DataDog/datadog-agent/comp/metadata/inventorychecks"
 	"github.com/DataDog/datadog-agent/comp/metadata/inventoryhost"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
@@ -68,6 +69,7 @@ func StartServer(
 	demux demultiplexer.Component,
 	invHost inventoryhost.Component,
 	secretResolver secrets.Component,
+	invChecks inventorychecks.Component,
 ) error {
 	err := initializeTLS()
 	if err != nil {
@@ -152,6 +154,7 @@ func StartServer(
 				demux,
 				invHost,
 				secretResolver,
+				invChecks,
 			)))
 	mux.Handle("/check/", http.StripPrefix("/check", check.SetupHandlers(checkMux)))
 	mux.Handle("/", gwmux)
