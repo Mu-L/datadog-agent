@@ -9,7 +9,7 @@ from time import sleep
 
 from invoke.exceptions import Exit
 
-from ..utils import DEFAULT_BRANCH
+from ..utils import DEFAULT_BRANCH, DEFAULT_INTEGRATIONS_CORE_BRANCH
 from .common.color import color_message
 from .common.github_api import GithubAPI
 
@@ -24,6 +24,7 @@ def trigger_macos_workflow(
     gitlab_pipeline_id=None,
     bucket_branch=None,
     version_cache_file_content=None,
+    integrations_core_ref=DEFAULT_INTEGRATIONS_CORE_BRANCH,
 ):
     """
     Trigger a workflow to build a MacOS Agent.
@@ -50,6 +51,9 @@ def trigger_macos_workflow(
 
     if version_cache_file_content:
         inputs["version_cache"] = version_cache_file_content
+
+    if integrations_core_ref is not None:
+        inputs["integrations_core_ref"] = version_cache_file_content
 
     # The workflow trigger endpoint doesn't return anything. You need to fetch the workflow run id
     # by yourself.

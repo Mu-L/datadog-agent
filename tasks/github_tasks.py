@@ -10,7 +10,7 @@ from .libs.github_actions_tools import (
     print_workflow_conclusion,
     trigger_macos_workflow,
 )
-from .utils import DEFAULT_BRANCH, load_release_versions
+from .utils import DEFAULT_BRANCH, DEFAULT_INTEGRATIONS_CORE_BRANCH, load_release_versions
 
 
 @task
@@ -24,6 +24,7 @@ def trigger_macos_build(
     version_cache=None,
     retry_download=3,
     retry_interval=10,
+    integrations_core_ref=DEFAULT_INTEGRATIONS_CORE_BRANCH,
 ):
     env = load_release_versions(ctx, release_version)
     github_action_ref = env["MACOS_BUILD_VERSION"]
@@ -40,6 +41,7 @@ def trigger_macos_build(
         gitlab_pipeline_id=os.environ.get("CI_PIPELINE_ID", None),
         bucket_branch=os.environ.get("BUCKET_BRANCH", None),
         version_cache_file_content=version_cache,
+        integrations_core_ref=integrations_core_ref,
     )
 
     workflow_conclusion, workflow_url = follow_workflow_run(run)
