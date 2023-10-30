@@ -734,3 +734,5 @@ exclude (
 // be removed and the version of listed above dd-trace-go.v1 bumped to the
 // newer version.
 replace gopkg.in/DataDog/dd-trace-go.v1 => github.com/DataDog/dd-trace-go v0.0.0-20231030162158-1e7a3e0de599
+
+replace github.com/aquasecurity/go-dep-parser => github.com/lebauce/go-dep-parser v0.0.0-20231030190658-51bbb436f1b8
