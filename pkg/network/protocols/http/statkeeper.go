@@ -121,6 +121,12 @@ func (h *StatKeeper) add(tx Transaction) {
 	}
 
 	key := NewKeyWithConnection(tx.ConnTuple(), path, fullPath, tx.Method())
+
+	// If connection rollup is enabled we set the client (ephemeral) port to 0
+	if h.cfg.EnableUSMConnectionRollup {
+		key.SrcPort = 0
+	}
+
 	stats, ok := h.stats[key]
 	if !ok {
 		if len(h.stats) >= h.maxEntries {
