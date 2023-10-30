@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/network"
+	"github.com/DataDog/datadog-agent/pkg/network/ports"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/network/types"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -21,6 +23,9 @@ type USMConnectionIndex[K comparable, V any] struct {
 	data     map[types.ConnectionKey]*USMConnectionData[K, V]
 	protocol string
 	once     sync.Once
+
+	// sourced from the agent config
+	enableConnectionRollup bool
 }
 
 // USMConnectionData aggregates all USM data associated to a specific connection
@@ -47,6 +52,9 @@ func GroupByConnection[K comparable, V any](protocol string, data map[K]V, keyGe
 	byConnection := &USMConnectionIndex[K, V]{
 		protocol: protocol,
 		lookupFn: USMLookup[K, V],
+
+		// Experimental: Connection Rollups
+		enableConnectionRollup: config.SystemProbe.GetBool("service_monitoring_config.enable_connection_rollup"),
 	}
 
 	// The map intended to calculate how many entries we actually need in byConnection.data, and for each entry
@@ -85,6 +93,15 @@ func GroupByConnection[K comparable, V any](protocol string, data map[K]V, keyGe
 // Find returns a `USMConnectionData` object associated to given `network.ConnectionStats`
 // The returned object will include all USM aggregation associated to this connection
 func (bc *USMConnectionIndex[K, V]) Find(c network.ConnectionStats) *USMConnectionData[K, V] {
+	if bc.enableConnectionRollup {
+		// TODO: Figure out how to handle the "Unknown" case later
+		if c.SPortIsEphemeral == ports.EphemeralTrue {
+			c.SPort = 0
+		} else {
+			c.DPort = 0
+		}
+	}
+
 	result := bc.lookupFn(c, bc.data)
 
 	if result != nil {
