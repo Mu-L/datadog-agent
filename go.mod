@@ -744,3 +744,5 @@ exclude (
 replace gopkg.in/DataDog/dd-trace-go.v1 => github.com/DataDog/dd-trace-go v0.0.0-20231030162158-1e7a3e0de599
 
 replace github.com/aquasecurity/go-dep-parser => github.com/lebauce/go-dep-parser v0.0.0-20231030190658-51bbb436f1b8
+
+replace github.com/aquasecurity/trivy-db => github.com/lebauce/trivy-db v0.0.0-20231031000443-2d41e0fab0ae
