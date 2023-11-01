@@ -1446,11 +1446,11 @@ core,github.com/google/cel-go/interpreter,Apache-2.0,Copyright (c) 2018 The Go A
 core,github.com/google/cel-go/interpreter/functions,Apache-2.0,Copyright (c) 2018 The Go Authors. All rights reserved
 core,github.com/google/cel-go/parser,Apache-2.0,Copyright (c) 2018 The Go Authors. All rights reserved
 core,github.com/google/cel-go/parser/gen,Apache-2.0,Copyright (c) 2018 The Go Authors. All rights reserved
-core,github.com/google/gnostic-models/compiler,Apache-2.0,"Copyright 2017-2022, Google LLC."
-core,github.com/google/gnostic-models/extensions,Apache-2.0,"Copyright 2017-2022, Google LLC."
-core,github.com/google/gnostic-models/jsonschema,Apache-2.0,"Copyright 2017-2022, Google LLC."
-core,github.com/google/gnostic-models/openapiv2,Apache-2.0,"Copyright 2017-2022, Google LLC."
-core,github.com/google/gnostic-models/openapiv3,Apache-2.0,"Copyright 2017-2022, Google LLC."
+core,github.com/google/gnostic/compiler,Apache-2.0,"Copyright 2017-2020, Google LLC."
+core,github.com/google/gnostic/extensions,Apache-2.0,"Copyright 2017-2020, Google LLC."
+core,github.com/google/gnostic/jsonschema,Apache-2.0,"Copyright 2017-2020, Google LLC."
+core,github.com/google/gnostic/openapiv2,Apache-2.0,"Copyright 2017-2020, Google LLC."
+core,github.com/google/gnostic/openapiv3,Apache-2.0,"Copyright 2017-2020, Google LLC."
 core,github.com/google/go-cmp/cmp,BSD-3-Clause,Copyright (c) 2017 The Go Authors. All rights reserved.
 core,github.com/google/go-cmp/cmp/internal/diff,BSD-3-Clause,Copyright (c) 2017 The Go Authors. All rights reserved.
 core,github.com/google/go-cmp/cmp/internal/flags,BSD-3-Clause,Copyright (c) 2017 The Go Authors. All rights reserved.
@@ -2891,7 +2891,6 @@ core,k8s.io/apimachinery/pkg/selection,Apache-2.0,Copyright 2014 The Kubernetes 
 core,k8s.io/apimachinery/pkg/types,Apache-2.0,Copyright 2014 The Kubernetes Authors.
 core,k8s.io/apimachinery/pkg/util/cache,Apache-2.0,Copyright 2014 The Kubernetes Authors.
 core,k8s.io/apimachinery/pkg/util/diff,Apache-2.0,Copyright 2014 The Kubernetes Authors.
-core,k8s.io/apimachinery/pkg/util/dump,Apache-2.0,Copyright 2014 The Kubernetes Authors.
 core,k8s.io/apimachinery/pkg/util/duration,Apache-2.0,Copyright 2014 The Kubernetes Authors.
 core,k8s.io/apimachinery/pkg/util/errors,Apache-2.0,Copyright 2014 The Kubernetes Authors.
 core,k8s.io/apimachinery/pkg/util/framer,Apache-2.0,Copyright 2014 The Kubernetes Authors.
@@ -2912,7 +2911,6 @@ core,k8s.io/apimachinery/pkg/util/strategicpatch,Apache-2.0,Copyright 2014 The K
 core,k8s.io/apimachinery/pkg/util/uuid,Apache-2.0,Copyright 2014 The Kubernetes Authors.
 core,k8s.io/apimachinery/pkg/util/validation,Apache-2.0,Copyright 2014 The Kubernetes Authors.
 core,k8s.io/apimachinery/pkg/util/validation/field,Apache-2.0,Copyright 2014 The Kubernetes Authors.
-core,k8s.io/apimachinery/pkg/util/version,Apache-2.0,Copyright 2014 The Kubernetes Authors.
 core,k8s.io/apimachinery/pkg/util/wait,Apache-2.0,Copyright 2014 The Kubernetes Authors.
 core,k8s.io/apimachinery/pkg/util/waitgroup,Apache-2.0,Copyright 2014 The Kubernetes Authors.
 core,k8s.io/apimachinery/pkg/util/yaml,Apache-2.0,Copyright 2014 The Kubernetes Authors.
@@ -3088,7 +3086,6 @@ core,k8s.io/autoscaler/vertical-pod-autoscaler/pkg/client/listers/autoscaling.k8
 core,k8s.io/autoscaler/vertical-pod-autoscaler/pkg/client/listers/autoscaling.k8s.io/v1beta2,Apache-2.0,Copyright 2014 The Kubernetes Authors.
 core,k8s.io/autoscaler/vertical-pod-autoscaler/pkg/client/listers/poc.autoscaling.k8s.io/v1alpha1,Apache-2.0,Copyright 2014 The Kubernetes Authors.
 core,k8s.io/cli-runtime/pkg/genericclioptions,Apache-2.0,Copyright 2014 The Kubernetes Authors.
-core,k8s.io/cli-runtime/pkg/genericiooptions,Apache-2.0,Copyright 2014 The Kubernetes Authors.
 core,k8s.io/cli-runtime/pkg/printers,Apache-2.0,Copyright 2014 The Kubernetes Authors.
 core,k8s.io/cli-runtime/pkg/resource,Apache-2.0,Copyright 2014 The Kubernetes Authors.
 core,k8s.io/client-go/applyconfigurations/admissionregistration/v1,Apache-2.0,Copyright 2014 The Kubernetes Authors.

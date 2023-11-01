@@ -253,7 +253,7 @@ require (
 	k8s.io/kube-openapi v0.0.0-20230717233707-2695361300d9
 	k8s.io/kube-state-metrics/v2 v2.8.2
 	k8s.io/kubelet v0.27.6
-	k8s.io/metrics v0.28.1
+	k8s.io/metrics v0.27.6
 	k8s.io/utils v0.0.0-20230505201702-9f6742963106
 	sigs.k8s.io/custom-metrics-apiserver v1.27.0
 )
@@ -640,7 +640,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.0.0 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/cel-go v0.12.7 // indirect
-	github.com/google/gnostic-models v0.6.8 // indirect
+	github.com/google/gnostic v0.6.9 // indirect
 	github.com/google/s2a-go v0.1.5 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/gosuri/uitable v0.0.4 // indirect
@@ -736,7 +736,7 @@ replace k8s.io/cri-api => k8s.io/cri-api v0.25.5
 // Use custom Trivy fork to reduce binary size
 // Pull in replacements needed by upstream Trivy
 replace (
-	github.com/aquasecurity/trivy => github.com/DataDog/trivy v0.0.0-20231101114910-c4ee8b867ce1
+	github.com/aquasecurity/trivy => github.com/DataDog/trivy v0.0.0-20231105094940-2d9c6b03fd24
 	github.com/saracen/walker => github.com/DataDog/walker v0.0.0-20230418153152-7f29bb2dc950
 	// oras 1.2.2 is incompatible with github.com/docker/docker v24.0.2
 	// cf. https://github.com/oras-project/oras-go/pull/527
@@ -762,5 +762,15 @@ exclude (
 	github.com/knadh/koanf/providers/confmap v0.1.0
 )
 
-// Small compilation fix so that k8s.io/apiserver can compile against kube-openapi
-replace k8s.io/kube-openapi => github.com/lebauce/kube-openapi v0.0.0-20231101122500-2744d18cf373
+replace (
+	// Stick to v0.27.6 as bumping client-go to 0.28.x breaks cluster agent leader election
+	k8s.io/api => k8s.io/api v0.27.6
+	k8s.io/apimachinery => k8s.io/apimachinery v0.27.6
+	k8s.io/cli-runtime => k8s.io/cli-runtime v0.27.6
+	k8s.io/client-go => k8s.io/client-go v0.27.6
+	k8s.io/component-base => k8s.io/component-base v0.27.6
+	// Small compilation fixes so that k8s.io/apiserver can compile against kube-openapi
+	k8s.io/kube-openapi => github.com/lebauce/kube-openapi v0.0.0-20231101162351-39b249f0ed92
+	k8s.io/kubectl => k8s.io/kubectl v0.27.6
+	sigs.k8s.io/kustomize/kyaml => sigs.k8s.io/kustomize/kyaml v0.14.3-0.20230526173653-cf3e81b590ab
+)
