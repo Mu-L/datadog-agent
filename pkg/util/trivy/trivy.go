@@ -83,6 +83,7 @@ func getDefaultArtifactOption(root string, opts sbom.ScanOptions) artifact.Optio
 		Slow:              !opts.Fast,
 		SBOMSources:       []string{},
 		DisabledHandlers:  DefaultDisabledHandlers(),
+		CollectFiles:      opts.CollectFiles,
 	}
 
 	if len(opts.Analyzers) == 1 && opts.Analyzers[0] == OSAnalyzers {
