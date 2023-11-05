@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"math"
 	"strings"
-	"time"
 	"unsafe"
 
 	"github.com/cilium/ebpf"
@@ -114,9 +113,7 @@ type ebpfProgram struct {
 	enabledProtocols  []*protocols.ProtocolSpec
 	disabledProtocols []*protocols.ProtocolSpec
 
-	// Used for connection_protocol data expiration
-	mapCleaner *ddebpf.MapCleaner
-	buildMode  buildmode.Type
+	buildMode buildmode.Type
 }
 
 func newManager(bpfTelemetry *errtelemetry.EBPFTelemetry) *errtelemetry.Manager {
@@ -182,13 +179,6 @@ func (e *ebpfProgram) Init() error {
 }
 
 func (e *ebpfProgram) Start() error {
-	mapCleaner, err := e.setupMapCleaner()
-	if err != nil {
-		log.Errorf("error creating map cleaner: %s", err)
-	} else {
-		e.mapCleaner = mapCleaner
-	}
-
 	e.enabledProtocols = e.executePerProtocol(e.enabledProtocols, "pre-start",
 		func(protocol protocols.Protocol, m *manager.Manager) error { return protocol.PreStart(m) },
 		func(protocols.Protocol, *manager.Manager) {})
@@ -198,7 +188,7 @@ func (e *ebpfProgram) Start() error {
 		return errNoProtocols
 	}
 
-	err = e.Manager.Start()
+	err := e.Manager.Start()
 	if err != nil {
 		return err
 	}
@@ -226,7 +216,6 @@ func (e *ebpfProgram) Start() error {
 }
 
 func (e *ebpfProgram) Close() error {
-	e.mapCleaner.Stop()
 	stopProtocolWrapper := func(protocol protocols.Protocol, m *manager.Manager) error {
 		protocol.Stop(m)
 		return nil
@@ -414,29 +403,6 @@ func (e *ebpfProgram) init(buf bytecode.AssetReader, options manager.Options) er
 	}
 
 	return err
-}
-
-const connProtoTTL = 3 * time.Minute
-const connProtoCleaningInterval = 5 * time.Minute
-
-func (e *ebpfProgram) setupMapCleaner() (*ddebpf.MapCleaner, error) {
-	mapCleaner, err := ddebpf.NewMapCleaner(e.connectionProtocolMap, new(netebpf.ConnTuple), new(netebpf.ProtocolStackWrapper))
-	if err != nil {
-		return nil, err
-	}
-
-	ttl := connProtoTTL.Nanoseconds()
-	mapCleaner.Clean(connProtoCleaningInterval, func(now int64, key, val interface{}) bool {
-		protoStack, ok := val.(*netebpf.ProtocolStackWrapper)
-		if !ok {
-			return false
-		}
-
-		updated := int64(protoStack.Updated)
-		return (now - updated) > ttl
-	})
-
-	return mapCleaner, nil
 }
 
 func (e *ebpfProgram) dumpMapsHandler(_ *manager.Manager, mapName string, currentMap *ebpf.Map) string {

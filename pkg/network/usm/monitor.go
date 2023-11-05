@@ -19,7 +19,9 @@ import (
 	manager "github.com/DataDog/ebpf-manager"
 
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/ebpf/probe/ebpfcheck"
+	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/config"
+	netebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	filterpkg "github.com/DataDog/datadog-agent/pkg/network/filter"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/telemetry"
@@ -34,6 +36,9 @@ const (
 	Disabled   monitorState = "Disabled"
 	Running    monitorState = "Running"
 	NotRunning monitorState = "Not Running"
+
+	connProtoTTL              = 3 * time.Minute
+	connProtoCleaningInterval = 5 * time.Minute
 )
 
 var (
@@ -56,6 +61,10 @@ type Monitor struct {
 	closeFilterFn func()
 
 	lastUpdateTime *atomic.Int64
+
+	// Used for connection_protocol data expiration
+	mapCleaner            *ddebpf.MapCleaner
+	connectionProtocolMap *ebpf.Map
 }
 
 // NewMonitor returns a new Monitor instance
@@ -100,15 +109,36 @@ func NewMonitor(c *config.Config, connectionProtocolMap, sockFD *ebpf.Map, bpfTe
 	state = Running
 
 	usmMonitor := &Monitor{
-		cfg:            c,
-		ebpfProgram:    mgr,
-		closeFilterFn:  closeFilterFn,
-		processMonitor: processMonitor,
+		cfg:                   c,
+		ebpfProgram:           mgr,
+		closeFilterFn:         closeFilterFn,
+		processMonitor:        processMonitor,
+		connectionProtocolMap: connectionProtocolMap,
 	}
 
 	usmMonitor.lastUpdateTime = atomic.NewInt64(time.Now().Unix())
 
 	return usmMonitor, nil
+}
+
+func (m *Monitor) setupMapCleaner() (*ddebpf.MapCleaner, error) {
+	mapCleaner, err := ddebpf.NewMapCleaner(m.connectionProtocolMap, new(netebpf.ConnTuple), new(netebpf.ProtocolStackWrapper))
+	if err != nil {
+		return nil, err
+	}
+
+	ttl := connProtoTTL.Nanoseconds()
+	mapCleaner.Clean(connProtoCleaningInterval, func(now int64, key, val interface{}) bool {
+		protoStack, ok := val.(*netebpf.ProtocolStackWrapper)
+		if !ok {
+			return false
+		}
+
+		updated := int64(protoStack.Updated)
+		return (now - updated) > ttl
+	})
+
+	return mapCleaner, nil
 }
 
 // Start USM monitor.
@@ -133,8 +163,17 @@ func (m *Monitor) Start() error {
 		}
 	}()
 
+	// setup map cleaner
+	mapCleaner, err := m.setupMapCleaner()
+	if err != nil {
+		log.Errorf("error creating map cleaner: %s", err)
+	} else {
+		m.mapCleaner = mapCleaner
+	}
+
 	err = m.ebpfProgram.Start()
 	if err != nil {
+		m.mapCleaner.Stop()
 		return err
 	}
 
@@ -186,6 +225,7 @@ func (m *Monitor) Stop() {
 
 	ebpfcheck.RemoveNameMappings(m.ebpfProgram.Manager.Manager)
 
+	m.mapCleaner.Stop()
 	m.ebpfProgram.Close()
 	m.closeFilterFn()
 }
