@@ -116,20 +116,19 @@ type ebpfProgram struct {
 	buildMode  buildmode.Type
 }
 
-func newEBPFProgram(c *config.Config, sockFD, connectionProtocolMap *ebpf.Map, bpfTelemetry *errtelemetry.EBPFTelemetry) (*ebpfProgram, error) {
-	mgr := &manager.Manager{
-		Maps:   mapsList,
-		Probes: probeList,
-	}
+func newManager(bpfTelemetry *errtelemetry.EBPFTelemetry) *errtelemetry.Manager {
+	return errtelemetry.NewManager(&manager.Manager{Maps: mapsList, Probes: probeList}, bpfTelemetry)
+}
 
+func newEBPFProgram(c *config.Config, sockFD, connectionProtocolMap *ebpf.Map, bpfTelemetry *errtelemetry.EBPFTelemetry) (*ebpfProgram, error) {
 	program := &ebpfProgram{
-		Manager:               errtelemetry.NewManager(mgr, bpfTelemetry),
+		Manager:               newManager(bpfTelemetry),
 		cfg:                   c,
 		connectionProtocolMap: connectionProtocolMap,
 	}
 
-	opensslSpec.Factory = newSSLProgramProtocolFactory(mgr, sockFD, bpfTelemetry)
-	goTLSSpec.Factory = newGoTLSProgramProtocolFactory(mgr, sockFD)
+	opensslSpec.Factory = newSSLProgramProtocolFactory(program.Manager.Manager, sockFD, bpfTelemetry)
+	goTLSSpec.Factory = newGoTLSProgramProtocolFactory(program.Manager.Manager, sockFD)
 
 	if err := program.initProtocols(c); err != nil {
 		return nil, err
