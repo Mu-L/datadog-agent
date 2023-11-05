@@ -300,3 +300,7 @@ func (m *Monitor) Stop() {
 func (m *Monitor) DumpMaps(maps ...string) (string, error) {
 	return m.ebpfProgram.DumpMaps(maps...)
 }
+
+func newManager(bpfTelemetry *errtelemetry.EBPFTelemetry) *errtelemetry.Manager {
+	return errtelemetry.NewManager(&manager.Manager{Maps: mapsList, Probes: probeList}, bpfTelemetry)
+}

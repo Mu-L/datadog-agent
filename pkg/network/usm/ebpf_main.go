@@ -46,10 +46,6 @@ type ebpfProgram struct {
 	buildMode buildmode.Type
 }
 
-func newManager(bpfTelemetry *errtelemetry.EBPFTelemetry) *errtelemetry.Manager {
-	return errtelemetry.NewManager(&manager.Manager{Maps: mapsList, Probes: probeList}, bpfTelemetry)
-}
-
 func newEBPFProgram(c *config.Config, sockFD, connectionProtocolMap *ebpf.Map, bpfTelemetry *errtelemetry.EBPFTelemetry) (*ebpfProgram, error) {
 	program := &ebpfProgram{
 		Manager:               newManager(bpfTelemetry),
