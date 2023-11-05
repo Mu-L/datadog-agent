@@ -8,7 +8,6 @@
 package usm
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -28,80 +27,11 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/http"
-	"github.com/DataDog/datadog-agent/pkg/network/protocols/http2"
-	"github.com/DataDog/datadog-agent/pkg/network/protocols/kafka"
 	errtelemetry "github.com/DataDog/datadog-agent/pkg/network/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/network/tracer/offsetguess"
 	"github.com/DataDog/datadog-agent/pkg/network/usm/buildmode"
 	"github.com/DataDog/datadog-agent/pkg/network/usm/utils"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
-)
-
-var (
-	errNoProtocols = errors.New("no protocol monitors were initialised")
-
-	// knownProtocols holds all known protocols supported by USM to initialize.
-	knownProtocols = []*protocols.ProtocolSpec{
-		http.Spec,
-		http2.Spec,
-		kafka.Spec,
-		javaTLSSpec,
-		// opensslSpec is unique, as we're modifying its factory during runtime to allow getting more parameters in the
-		// factory.
-		opensslSpec,
-		goTLSSpec,
-	}
-
-	mapsList = []*manager.Map{
-		{
-			Name: protocols.TLSDispatcherProgramsMap,
-		},
-		{
-			Name: protocols.ProtocolDispatcherProgramsMap,
-		},
-		{
-			Name: connectionStatesMap,
-		},
-	}
-
-	probeList = []*manager.Probe{
-		{
-			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				EBPFFuncName: "kprobe__tcp_sendmsg",
-				UID:          probeUID,
-			},
-			KProbeMaxActive: maxActive,
-		},
-		{
-			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				EBPFFuncName: "tracepoint__net__netif_receive_skb",
-				UID:          probeUID,
-			},
-		},
-		{
-			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				EBPFFuncName: protocolDispatcherSocketFilterFunction,
-				UID:          probeUID,
-			},
-		},
-	}
-)
-
-const (
-	// ELF section of the BPF_PROG_TYPE_SOCKET_FILTER program used
-	// to classify protocols and dispatch the correct handlers.
-	protocolDispatcherSocketFilterFunction = "socket__protocol_dispatcher"
-	connectionStatesMap                    = "connection_states"
-
-	// maxActive configures the maximum number of instances of the
-	// kretprobe-probed functions handled simultaneously.  This value should be
-	// enough for typical workloads (e.g. some amount of processes blocked on
-	// the accept syscall).
-	maxActive = 128
-	probeUID  = "http"
-
-	usmAssetName      = "usm.o"
-	usmDebugAssetName = "usm-debug.o"
 )
 
 type ebpfProgram struct {
