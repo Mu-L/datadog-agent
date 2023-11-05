@@ -100,6 +100,9 @@ const (
 	// the accept syscall).
 	maxActive = 128
 	probeUID  = "http"
+
+	usmAssetName      = "usm.o"
+	usmDebugAssetName = "usm-debug.o"
 )
 
 type ebpfProgram struct {
@@ -233,7 +236,11 @@ func (e *ebpfProgram) Close() error {
 }
 
 func (e *ebpfProgram) initCORE() error {
-	assetName := getAssetName("usm", e.cfg.BPFDebug)
+	assetName := usmAssetName
+	if e.cfg.BPFDebug {
+		assetName = usmDebugAssetName
+	}
+
 	return ddebpf.LoadCOREAsset(assetName, e.init)
 }
 
@@ -430,14 +437,6 @@ func (e *ebpfProgram) setupMapCleaner() (*ddebpf.MapCleaner, error) {
 	})
 
 	return mapCleaner, nil
-}
-
-func getAssetName(module string, debug bool) string {
-	if debug {
-		return fmt.Sprintf("%s-debug.o", module)
-	}
-
-	return fmt.Sprintf("%s.o", module)
 }
 
 func (e *ebpfProgram) dumpMapsHandler(_ *manager.Manager, mapName string, currentMap *ebpf.Map) string {
