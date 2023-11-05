@@ -10,8 +10,11 @@ package usm
 import (
 	"errors"
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
+	"strings"
 	"syscall"
 	"time"
+	"unsafe"
 
 	"github.com/cilium/ebpf"
 	"go.uber.org/atomic"
@@ -29,6 +32,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/kafka"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/telemetry"
 	errtelemetry "github.com/DataDog/datadog-agent/pkg/network/telemetry"
+	"github.com/DataDog/datadog-agent/pkg/network/usm/buildmode"
 	"github.com/DataDog/datadog-agent/pkg/process/monitor"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -119,7 +123,7 @@ var (
 type Monitor struct {
 	cfg *config.Config
 
-	ebpfProgram *ebpfProgram
+	mgr *errtelemetry.Manager
 
 	processMonitor *monitor.ProcessMonitor
 
@@ -131,6 +135,13 @@ type Monitor struct {
 	// Used for connection_protocol data expiration
 	mapCleaner            *ddebpf.MapCleaner
 	connectionProtocolMap *ebpf.Map
+
+	tailCallRouter []manager.TailCallRoute
+
+	enabledProtocols  []*protocols.ProtocolSpec
+	disabledProtocols []*protocols.ProtocolSpec
+
+	buildMode buildmode.Type
 }
 
 // NewMonitor returns a new Monitor instance
@@ -144,43 +155,44 @@ func NewMonitor(c *config.Config, connectionProtocolMap, sockFD *ebpf.Map, bpfTe
 		}
 	}()
 
-	mgr, err := newEBPFProgram(c, sockFD, connectionProtocolMap, bpfTelemetry)
-	if err != nil {
-		return nil, fmt.Errorf("error setting up ebpf program: %w", err)
+	usmMonitor := &Monitor{
+		cfg:                   c,
+		mgr:                   newManager(bpfTelemetry),
+		connectionProtocolMap: connectionProtocolMap,
 	}
 
-	if len(mgr.enabledProtocols) == 0 {
+	opensslSpec.Factory = newSSLProgramProtocolFactory(usmMonitor.mgr.Manager, sockFD, bpfTelemetry)
+	goTLSSpec.Factory = newGoTLSProgramProtocolFactory(usmMonitor.mgr.Manager, sockFD)
+
+	if err := usmMonitor.initProtocols(c); err != nil {
+		return nil, err
+	}
+
+	if len(usmMonitor.enabledProtocols) == 0 {
 		state = Disabled
 		log.Debug("not enabling USM as no protocols monitoring were enabled.")
 		return nil, nil
 	}
 
-	if err := mgr.Init(); err != nil {
+	// TODO: change
+	if err := usmMonitor.mgr.Init(); err != nil {
 		return nil, fmt.Errorf("error initializing ebpf program: %w", err)
 	}
 
-	filter, _ := mgr.GetProbe(manager.ProbeIdentificationPair{EBPFFuncName: protocolDispatcherSocketFilterFunction, UID: probeUID})
+	filter, _ := usmMonitor.mgr.GetProbe(manager.ProbeIdentificationPair{EBPFFuncName: protocolDispatcherSocketFilterFunction, UID: probeUID})
 	if filter == nil {
 		return nil, fmt.Errorf("error retrieving socket filter")
 	}
-	ebpfcheck.AddNameMappings(mgr.Manager.Manager, "usm_monitor")
+	ebpfcheck.AddNameMappings(usmMonitor.mgr.Manager, "usm_monitor")
 
-	closeFilterFn, err := filterpkg.HeadlessSocketFilter(c, filter)
+	usmMonitor.closeFilterFn, err = filterpkg.HeadlessSocketFilter(c, filter)
 	if err != nil {
 		return nil, fmt.Errorf("error enabling traffic inspection: %s", err)
 	}
 
-	processMonitor := monitor.GetProcessMonitor()
+	usmMonitor.processMonitor = monitor.GetProcessMonitor()
 
 	state = Running
-
-	usmMonitor := &Monitor{
-		cfg:                   c,
-		ebpfProgram:           mgr,
-		closeFilterFn:         closeFilterFn,
-		processMonitor:        processMonitor,
-		connectionProtocolMap: connectionProtocolMap,
-	}
 
 	usmMonitor.lastUpdateTime = atomic.NewInt64(time.Now().Unix())
 
@@ -278,7 +290,16 @@ func (m *Monitor) GetProtocolStats() map[protocols.ProtocolType]interface{} {
 		telemetry.ReportPrometheus()
 	}()
 
-	return m.ebpfProgram.getProtocolStats()
+	ret := make(map[protocols.ProtocolType]interface{})
+
+	for _, protocol := range m.enabledProtocols {
+		ps := protocol.Instance.GetStats()
+		if ps != nil {
+			ret[ps.Type] = ps.Stats
+		}
+	}
+
+	return ret
 }
 
 // Stop HTTP monitoring
@@ -289,7 +310,7 @@ func (m *Monitor) Stop() {
 
 	m.processMonitor.Stop()
 
-	ebpfcheck.RemoveNameMappings(m.ebpfProgram.Manager.Manager)
+	ebpfcheck.RemoveNameMappings(m.mgr.Manager)
 
 	m.mapCleaner.Stop()
 	m.ebpfProgram.Close()
@@ -298,9 +319,107 @@ func (m *Monitor) Stop() {
 
 // DumpMaps dumps the maps associated with the monitor
 func (m *Monitor) DumpMaps(maps ...string) (string, error) {
-	return m.ebpfProgram.DumpMaps(maps...)
+	return m.mgr.DumpMaps(maps...)
 }
 
 func newManager(bpfTelemetry *errtelemetry.EBPFTelemetry) *errtelemetry.Manager {
 	return errtelemetry.NewManager(&manager.Manager{Maps: mapsList, Probes: probeList}, bpfTelemetry)
+}
+
+// executePerProtocol runs the given callback (`cb`) for every protocol in the given list (`protocolList`).
+// If the callback failed, then we call the error callback (`errorCb`). Eventually returning a list of protocols which
+// successfully executed the callback.
+func (m *Monitor) executePerProtocol(protocolList []*protocols.ProtocolSpec, phaseName string, cb func(protocols.Protocol, *manager.Manager) error, errorCb func(protocols.Protocol, *manager.Manager)) []*protocols.ProtocolSpec {
+	// Deleting from an array while iterating it is not a simple task. Instead, every successfully enabled protocol,
+	// we'll keep in a temporary copy and return it at the end.
+	res := make([]*protocols.ProtocolSpec, 0)
+	for _, protocol := range protocolList {
+		if err := cb(protocol.Instance, m.mgr.Manager); err != nil {
+			if errorCb != nil {
+				errorCb(protocol.Instance, m.mgr.Manager)
+			}
+			log.Errorf("could not complete %q phase of %q monitoring: %s", phaseName, protocol.Instance.Name(), err)
+			continue
+		}
+		res = append(res, protocol)
+	}
+	return res
+}
+
+// initProtocols takes the network configuration `c` and uses it to initialise
+// the enabled protocols' monitoring, and configures the ebpf-manager `mgr`
+// accordingly.
+//
+// For each enabled protocols, a protocol-specific instance of the Protocol
+// interface is initialised, and the required maps and tail calls routers are setup
+// in the manager.
+//
+// If a protocol is not enabled, its tail calls are instead added to the list of
+// excluded functions for them to be patched out by ebpf-manager on startup.
+//
+// It returns:
+// - a slice containing instances of the Protocol interface for each enabled protocol support
+// - a slice containing pointers to the protocol specs of disabled protocols.
+// - an error value, which is non-nil if an error occurred while initialising a protocol
+func (m *Monitor) initProtocols(c *config.Config) error {
+	m.enabledProtocols = make([]*protocols.ProtocolSpec, 0)
+	m.disabledProtocols = make([]*protocols.ProtocolSpec, 0)
+
+	for _, spec := range knownProtocols {
+		protocol, err := spec.Factory(c)
+		if err != nil {
+			return &errNotSupported{err}
+		}
+
+		if protocol != nil {
+			spec.Instance = protocol
+			m.enabledProtocols = append(m.enabledProtocols, spec)
+
+			log.Infof("%v monitoring enabled", protocol.Name())
+		} else {
+			m.disabledProtocols = append(m.disabledProtocols, spec)
+		}
+	}
+
+	return nil
+}
+
+// getProtocolsForBuildMode returns 2 lists - supported and not-supported protocol lists.
+// 1. Supported - enabled protocols which are supported by the current build mode (`e.buildMode`)
+// 2. Not Supported - disabled protocols, and enabled protocols which are not supported by the current build mode.
+func (m *Monitor) getProtocolsForBuildMode() ([]*protocols.ProtocolSpec, []*protocols.ProtocolSpec) {
+	supported := make([]*protocols.ProtocolSpec, 0)
+	notSupported := make([]*protocols.ProtocolSpec, 0, len(m.disabledProtocols))
+	notSupported = append(notSupported, m.disabledProtocols...)
+
+	for _, p := range m.enabledProtocols {
+		if p.Instance.IsBuildModeSupported(m.buildMode) {
+			supported = append(supported, p)
+		} else {
+			notSupported = append(notSupported, p)
+		}
+	}
+
+	return supported, notSupported
+}
+
+func (m *Monitor) dumpMapsHandler(_ *manager.Manager, mapName string, currentMap *ebpf.Map) string {
+	var output strings.Builder
+
+	switch mapName {
+	case connectionStatesMap: // maps/connection_states (BPF_MAP_TYPE_HASH), key C.conn_tuple_t, value C.__u32
+		output.WriteString("Map: '" + mapName + "', key: 'C.conn_tuple_t', value: 'C.__u32'\n")
+		iter := currentMap.Iterate()
+		var key http.ConnTuple
+		var value uint32
+		for iter.Next(unsafe.Pointer(&key), unsafe.Pointer(&value)) {
+			output.WriteString(spew.Sdump(key, value))
+		}
+
+	default: // Go through enabled protocols in case one of them now how to handle the current map
+		for _, p := range m.enabledProtocols {
+			p.Instance.DumpMaps(&output, mapName, currentMap)
+		}
+	}
+	return output.String()
 }
