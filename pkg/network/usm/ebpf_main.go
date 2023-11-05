@@ -52,6 +52,40 @@ var (
 		opensslSpec,
 		goTLSSpec,
 	}
+
+	mapsList = []*manager.Map{
+		{
+			Name: protocols.TLSDispatcherProgramsMap,
+		},
+		{
+			Name: protocols.ProtocolDispatcherProgramsMap,
+		},
+		{
+			Name: connectionStatesMap,
+		},
+	}
+
+	probeList = []*manager.Probe{
+		{
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				EBPFFuncName: "kprobe__tcp_sendmsg",
+				UID:          probeUID,
+			},
+			KProbeMaxActive: maxActive,
+		},
+		{
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				EBPFFuncName: "tracepoint__net__netif_receive_skb",
+				UID:          probeUID,
+			},
+		},
+		{
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				EBPFFuncName: protocolDispatcherSocketFilterFunction,
+				UID:          probeUID,
+			},
+		},
+	}
 )
 
 const (
@@ -84,32 +118,8 @@ type ebpfProgram struct {
 
 func newEBPFProgram(c *config.Config, sockFD, connectionProtocolMap *ebpf.Map, bpfTelemetry *errtelemetry.EBPFTelemetry) (*ebpfProgram, error) {
 	mgr := &manager.Manager{
-		Maps: []*manager.Map{
-			{Name: protocols.TLSDispatcherProgramsMap},
-			{Name: protocols.ProtocolDispatcherProgramsMap},
-			{Name: connectionStatesMap},
-		},
-		Probes: []*manager.Probe{
-			{
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: "kprobe__tcp_sendmsg",
-					UID:          probeUID,
-				},
-				KProbeMaxActive: maxActive,
-			},
-			{
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: "tracepoint__net__netif_receive_skb",
-					UID:          probeUID,
-				},
-			},
-			{
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: protocolDispatcherSocketFilterFunction,
-					UID:          probeUID,
-				},
-			},
-		},
+		Maps:   mapsList,
+		Probes: probeList,
 	}
 
 	program := &ebpfProgram{
