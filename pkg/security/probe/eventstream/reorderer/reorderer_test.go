@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	manager "github.com/DataDog/ebpf-manager"
 	"github.com/cilium/ebpf/perf"
 	"github.com/stretchr/testify/assert"
 )
@@ -122,6 +123,7 @@ func TestOrderRate(t *testing.T) {
 
 	var wg sync.WaitGroup
 	defer wg.Wait()
+	pmap := &manager.PerfMap{}
 
 	wg.Add(1)
 	go reOrderer.Start(&wg)
@@ -132,7 +134,7 @@ func TestOrderRate(t *testing.T) {
 			RawSample: []byte{0, byte(i + 1), e},
 		}
 
-		reOrderer.HandleEvent(&record, nil, nil)
+		reOrderer.HandleEvent(&record, pmap, nil)
 		e++
 	}
 
