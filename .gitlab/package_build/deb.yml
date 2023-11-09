@@ -11,6 +11,7 @@
     - source /root/.bashrc
     - !reference [.setup_ruby_mirror_linux]
     - !reference [.setup_python_mirror_linux]
+    - !reference [.setup_rust_mirror_linux]
     - !reference [.retrieve_linux_go_deps]
     - echo "About to build for $RELEASE_VERSION"
     # remove artifacts from previous pipelines that may come from the cache
@@ -111,6 +112,7 @@ agent_deb-arm64-a7:
     - source /root/.bashrc
     - !reference [.setup_ruby_mirror_linux]
     - !reference [.setup_python_mirror_linux]
+    - !reference [.setup_rust_mirror_linux]
     - !reference [.retrieve_linux_go_deps]
     - echo "About to build for $RELEASE_VERSION_7"
     - echo "Detected host architecture $(uname -m)"

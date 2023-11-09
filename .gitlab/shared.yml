@@ -37,3 +37,17 @@
   - *get_artifactory_bypass_win
   - *get_artifactory_token_win
   - if (($Env:USE_CACHING_PROXY_PYTHON -eq "true") -and ($Env:ARTIFACTORY_BYPASS -eq "false")) { $PIP_INDEX_URL="https://${Env:ARTIFACTORY_USERNAME}:${ARTIFACTORY_TOKEN}@${Env:ARTIFACTORY_URL}/${Env:ARTIFACTORY_PYPI_PATH}" }
+
+.setup_rust_mirror_linux:
+  - *get_artifactory_bypass_linux
+  - set +x
+  - *get_artifactory_token_linux
+  - |-
+    if [ "${USE_CACHING_PROXY_RUST}" = "true" ] && [ "${ARTIFACTORY_BYPASS}" = "false" ]; then
+      export CARGO_REGISTRIES_ARTIFACTORY_TOKEN=${ARTIFACTORY_TOKEN}
+      export CARGO_REGISTRIES_ARTIFACTORY_TOKEN=${ARTIFACTORY_TOKEN}
+
+      mkdir -p ~/.cargo
+      echo '[registry]\ndefault = "artifactory"\n\n[registries.artifactory]\nindex = "sparse+https://datadog.jfrog.io/artifactory/api/cargo/agent-crates/index/"\n\n[source.artifactory-remote]\nregistry = "sparse+https://datadog.jfrog.io/artifactory/api/cargo/agent-crates/index/"\n\n[source.crates-io]\nreplace-with = "artifactory-remote"' >> ~/.cargo/config.toml
+    fi
+  - set -x
