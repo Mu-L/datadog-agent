@@ -251,7 +251,7 @@ func (r *ReOrderer) Start(wg *sync.WaitGroup) {
 }
 
 // HandleEvent handle event form perf ring
-func (r *ReOrderer) HandleEvent(record *perf.Record, perfMap *manager.PerfMap, manager *manager.Manager) {
+func (r *ReOrderer) HandleEvent(record *perf.Record, perfMap *manager.PerfMap, _ *manager.Manager) {
 	ddebpf.ReportPerfMetrics(perfMap.Name, ebpf.PerfEventArray.String(), record.CPU, record.Remaining, perfMap.BufferSize())
 	select {
 	case r.queue <- record:
