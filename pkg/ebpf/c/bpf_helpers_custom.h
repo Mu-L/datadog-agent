@@ -6,11 +6,7 @@
 /* Macro to output debug logs to /sys/kernel/debug/tracing/trace_pipe
  */
 #ifdef DEBUG
-#define log_debug(fmt, ...)                                        \
-    ({                                                             \
-        char ____fmt[] = fmt;                                      \
-        bpf_trace_printk(____fmt, sizeof(____fmt), ##__VA_ARGS__); \
-    })
+#define log_debug(fmt, ...) bpf_trace_printk(fmt, sizeof(fmt), ##__VA_ARGS__)
 #else
 // No op
 #define log_debug(fmt, ...)
