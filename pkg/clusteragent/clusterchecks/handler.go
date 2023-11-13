@@ -54,13 +54,12 @@ type Handler struct {
 	m                    sync.RWMutex // Below fields protected by the mutex
 	state                state
 	leaderIP             string
-	port                 int
 	errCount             int
 }
 
 // NewHandler returns a populated Handler
 // It will hook on the specified AutoConfig instance at Start
-func NewHandler(ac pluggableAutoConfig) (*Handler, error) {
+func NewHandler(ac pluggableAutoConfig, leaderForwarder *api.LeaderForwarder) (*Handler, error) {
 	if ac == nil {
 		return nil, errors.New("empty autoconfig object")
 	}
@@ -70,11 +69,10 @@ func NewHandler(ac pluggableAutoConfig) (*Handler, error) {
 		warmupDuration:   config.Datadog.GetDuration("cluster_checks.warmup_duration") * time.Second,
 		leadershipChan:   make(chan state, 1),
 		dispatcher:       newDispatcher(),
-		port:             config.Datadog.GetInt("cluster_agent.cmd_port"),
 	}
 
 	if config.Datadog.GetBool("leader_election") {
-		h.leaderForwarder = api.NewLeaderForwarder(h.port, config.Datadog.GetInt("cluster_agent.max_leader_connections"))
+		h.leaderForwarder = leaderForwarder
 		callback, err := getLeaderIPCallback()
 		if err != nil {
 			return nil, err

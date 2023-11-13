@@ -15,57 +15,20 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/languagedetection"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/process"
-	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/apiserver/leaderelection"
 
 	"github.com/gorilla/mux"
 	"google.golang.org/protobuf/proto"
 )
 
-// InstallLanguageDetectionEndpoints installs language detection endpoints
-func InstallLanguageDetectionEndpoints(r *mux.Router) error {
-	lf := api.NewLeaderForwarder(config.Datadog.GetInt("cluster_agent.cmd_port"), config.Datadog.GetInt("cluster_agent.max_leader_connections"))
-	handler, err := newHandler(lf)
-	if err != nil {
-		return err
-	}
-
-	r.HandleFunc("/languagedetection", api.WithTelemetryWrapper("postDetectedLanguages", handler.postDetectedLanguages)).Methods("POST")
-	return nil
-}
-
 type handler struct {
-	leaderforwarder       *api.LeaderForwarder
-	le                    *leaderelection.LeaderEngine
-	leaderElectionEnabled bool
+	lh *api.LeaderHandler
 }
 
-// newHandler returns a new handler
-func newHandler(lf *api.LeaderForwarder) (*handler, error) {
-	leaderEngine, err := leaderelection.GetLeaderEngine()
-	if err != nil {
-		return nil, err
-	}
-
-	return &handler{leaderforwarder: lf, le: leaderEngine, leaderElectionEnabled: config.Datadog.GetBool("leader_election")}, nil
-}
-
-// rejectOrForwardLeaderQuery performs some checks on incoming queries that should go to a leader:
-// - Forward to leader if we are a follower
-// - Reject with "not ready" if leader election status is unknown
-func (h *handler) rejectOrForwardLeaderQuery(rw http.ResponseWriter, req *http.Request) bool {
-	if h.le.IsLeader() || !h.leaderElectionEnabled {
-		return false
-	}
-
-	ip, err := h.le.GetLeaderIP()
-	if err != nil {
-		http.Error(rw, "Follower unable to forward as leaderForwarder is not available yet", http.StatusServiceUnavailable)
-		return true
-	}
-
-	h.leaderforwarder.SetLeaderIP(ip)
-	h.leaderforwarder.Forward(rw, req)
-	return true
+// InstallLanguageDetectionEndpoints installs language detection endpoints
+func InstallLanguageDetectionEndpoints(r *mux.Router, lf *api.LeaderForwarder) {
+	lh := api.NewLeaderHandler(lf)
+	handler := &handler{lh: lh}
+	r.HandleFunc("/languagedetection", api.WithTelemetryWrapper("postDetectedLanguages", handler.postDetectedLanguages)).Methods("POST")
 }
 
 func (h *handler) postDetectedLanguages(w http.ResponseWriter, r *http.Request) {
@@ -76,7 +39,7 @@ func (h *handler) postDetectedLanguages(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Reject if not leader
-	if h.rejectOrForwardLeaderQuery(w, r) {
+	if h.lh.RejectOrForwardLeaderQuery(w, r) {
 		return
 	}
 

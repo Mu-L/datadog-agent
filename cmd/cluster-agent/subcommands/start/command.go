@@ -38,6 +38,7 @@ import (
 	admissionpkg "github.com/DataDog/datadog-agent/pkg/clusteragent/admission"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/admission/mutate"
 	admissionpatch "github.com/DataDog/datadog-agent/pkg/clusteragent/admission/patch"
+	apidca "github.com/DataDog/datadog-agent/pkg/clusteragent/api"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/clusterchecks"
 	"github.com/DataDog/datadog-agent/pkg/collector"
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
@@ -168,8 +169,14 @@ func start(log log.Component, config config.Component, telemetry telemetry.Compo
 		}
 	}
 
+	// Setup the leader forwarder for language detection and cluster checks
+	var leaderForwarder *apidca.LeaderForwarder
+	if pkgconfig.Datadog.GetBool("cluster_checks.enabled") || pkgconfig.Datadog.GetBool("language_detection.enabled") {
+		leaderForwarder = apidca.NewLeaderForwarder(pkgconfig.Datadog.GetInt("cluster_agent.cmd_port"), pkgconfig.Datadog.GetInt("cluster_agent.max_connections"))
+	}
+
 	// Starting server early to ease investigations
-	if err := api.StartServer(demultiplexer); err != nil {
+	if err := api.StartServer(demultiplexer, leaderForwarder); err != nil {
 		return fmt.Errorf("Error while starting agent API, exiting: %v", err)
 	}
 
@@ -256,7 +263,7 @@ func start(log log.Component, config config.Component, telemetry telemetry.Compo
 
 	if pkgconfig.Datadog.GetBool("cluster_checks.enabled") {
 		// Start the cluster check Autodiscovery
-		clusterCheckHandler, err := setupClusterCheck(mainCtx)
+		clusterCheckHandler, err := setupClusterCheck(mainCtx, leaderForwarder)
 		if err == nil {
 			api.ModifyAPIRouter(func(r *mux.Router) {
 				dcav1.InstallChecksEndpoints(r, clusteragent.ServerContext{ClusterCheckHandler: clusterCheckHandler})
@@ -413,8 +420,8 @@ func initRuntimeSettings() error {
 	return commonsettings.RegisterRuntimeSetting(commonsettings.NewProfilingRuntimeSetting("internal_profiling", "datadog-cluster-agent"))
 }
 
-func setupClusterCheck(ctx context.Context) (*clusterchecks.Handler, error) {
-	handler, err := clusterchecks.NewHandler(common.AC)
+func setupClusterCheck(ctx context.Context, leaderForwarder *apidca.LeaderForwarder) (*clusterchecks.Handler, error) {
+	handler, err := clusterchecks.NewHandler(common.AC, leaderForwarder)
 	if err != nil {
 		return nil, err
 	}

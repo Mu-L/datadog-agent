@@ -8,8 +8,9 @@
 package v1
 
 import (
+	"github.com/DataDog/datadog-agent/pkg/clusteragent/api"
 	"github.com/gorilla/mux"
 )
 
 // InstallLanguageDetectionEndpoints installs language detection endpoints
-func InstallLanguageDetectionEndpoints(_ *mux.Router) {}
+func InstallLanguageDetectionEndpoints(*mux.Router, *api.LeaderForwarder) {}

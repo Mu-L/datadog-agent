@@ -32,6 +32,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/api/security"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
+	"github.com/DataDog/datadog-agent/pkg/clusteragent/api"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/DataDog/datadog-agent/pkg/tagger"
@@ -46,7 +47,7 @@ var (
 )
 
 // StartServer creates the router and starts the HTTP server
-func StartServer(senderManager sender.DiagnoseSenderManager) error {
+func StartServer(senderManager sender.DiagnoseSenderManager, leaderForwarder *api.LeaderForwarder) error {
 	// create the root HTTP router
 	router = mux.NewRouter()
 	apiRouter = router.PathPrefix("/api/v1").Subrouter()
@@ -58,7 +59,7 @@ func StartServer(senderManager sender.DiagnoseSenderManager) error {
 	v1.InstallMetadataEndpoints(apiRouter)
 
 	// API V1 Language Detection APIs
-	v1.InstallLanguageDetectionEndpoints(apiRouter)
+	v1.InstallLanguageDetectionEndpoints(apiRouter, leaderForwarder)
 
 	// Validate token for every request
 	router.Use(validateToken)
