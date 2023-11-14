@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"runtime"
 	"time"
 
 	"github.com/DataDog/datadog-agent/comp/core/config"
@@ -84,11 +85,14 @@ type hostMetadata struct {
 	CloudProviderHostID    string `json:"cloud_provider_host_id"`
 	OsVersion              string `json:"os_version"`
 
-	// From file system
+	// from file system
 	HypervisorGuestUUID string `json:"hypervisor_guest_uuid"`
 	DmiProductUUID      string `json:"dmi_product_uuid"`
 	DmiBoardAssetTag    string `json:"dmi_board_asset_tag"`
 	DmiBoardVendor      string `json:"dmi_board_vendor"`
+
+	// from package repositories
+	GPGSigningEnabled bool `json:"gpg_signing_enabled"`
 }
 
 // Payload handles the JSON unmarshalling of the metadata payload
@@ -144,7 +148,7 @@ func newInventoryHostProvider(deps dependencies) provides {
 		hostname: hname,
 		data:     &hostMetadata{},
 	}
-	ih.InventoryPayload = util.CreateInventoryPayload(deps.Config, deps.Log, deps.Serializer, ih.getPayload, "host.json")
+	ih.InventoryPayload = util.CreateInventoryPayload(deps.Config, deps.Log, deps.Serializer, ih.getPayload, "host.json", time.Duration(0))
 
 	return provides{
 		Comp:          ih,
@@ -230,6 +234,11 @@ func (ih *invHost) fillData() {
 	ih.data.CloudProviderSource = cloudproviders.GetSource(cloudProvider)
 	ih.data.CloudProviderHostID = cloudproviders.GetHostID(context.Background(), cloudProvider)
 	ih.data.OsVersion = osVersionGet()
+
+	ih.data.GPGSigningEnabled = false
+	if runtime.GOOS == "linux" {
+		ih.data.GPGSigningEnabled = true // TODO implement gpgCheck parsing debian/redhat
+	}
 }
 
 func (ih *invHost) getPayload() marshaler.JSONMarshaler {
