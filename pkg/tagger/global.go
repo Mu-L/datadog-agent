@@ -26,7 +26,8 @@ import (
 
 var (
 	// defaultTagger is the shared tagger instance backing the global Tag and Init functions
-	defaultTagger Tagger
+	defaultTagger     Tagger
+	defaultTaggerLock sync.RWMutex
 
 	// initOnce ensures that the default tagger is only initialized once.  It is reset every
 	// time the default tagger is set.
@@ -77,6 +78,7 @@ func Init(ctx context.Context) error {
 			DogstatsdCardinality = collectors.LowCardinality
 		}
 
+		defaultTagger := GetDefaultTagger()
 		if defaultTagger == nil {
 			initErr = errors.New("tagger has not been set")
 			return
@@ -100,7 +102,7 @@ func GetEntity(entityID string) (*types.Entity, error) {
 	}
 	mux.RUnlock()
 
-	return defaultTagger.GetEntity(entityID)
+	return GetDefaultTagger().GetEntity(entityID)
 }
 
 // Tag queries the captureTagger (for replay scenarios) or the defaultTagger.
@@ -118,7 +120,7 @@ func Tag(entity string, cardinality collectors.TagCardinality) ([]string, error)
 	}
 	mux.RUnlock()
 
-	return defaultTagger.Tag(entity, cardinality)
+	return GetDefaultTagger().Tag(entity, cardinality)
 }
 
 // AccumulateTagsFor queries the defaultTagger to get entity tags from cache or
@@ -137,7 +139,7 @@ func AccumulateTagsFor(entity string, cardinality collectors.TagCardinality, tb 
 	}
 	mux.RUnlock()
 
-	return defaultTagger.AccumulateTagsFor(entity, cardinality, tb)
+	return GetDefaultTagger().AccumulateTagsFor(entity, cardinality, tb)
 }
 
 // GetEntityHash returns the hash for the tags associated with the given entity
@@ -163,7 +165,7 @@ func StandardTags(entity string) ([]string, error) {
 	}
 	mux.RUnlock()
 
-	return defaultTagger.Standard(entity)
+	return GetDefaultTagger().Standard(entity)
 }
 
 // AgentTags returns the agent tags
@@ -195,7 +197,7 @@ func GlobalTags(cardinality collectors.TagCardinality) ([]string, error) {
 	}
 	mux.RUnlock()
 
-	return defaultTagger.Tag(collectors.GlobalEntityID, cardinality)
+	return GetDefaultTagger().Tag(collectors.GlobalEntityID, cardinality)
 }
 
 // globalTagBuilder queries global tags that should apply to all data coming
@@ -212,29 +214,34 @@ func globalTagBuilder(cardinality collectors.TagCardinality, tb tagset.TagsAccum
 	}
 	mux.RUnlock()
 
-	return defaultTagger.AccumulateTagsFor(collectors.GlobalEntityID, cardinality, tb)
+	return GetDefaultTagger().AccumulateTagsFor(collectors.GlobalEntityID, cardinality, tb)
 }
 
 // Stop queues a stop signal to the defaultTagger
 func Stop() error {
-	return defaultTagger.Stop()
+	return GetDefaultTagger().Stop()
 }
 
 // List the content of the defaulTagger
 func List(cardinality collectors.TagCardinality) tagger_api.TaggerListResponse {
-	return defaultTagger.List(cardinality)
+	return GetDefaultTagger().List(cardinality)
 }
 
 // SetDefaultTagger sets the global Tagger instance
 func SetDefaultTagger(tagger Tagger) {
+	defaultTaggerLock.Lock()
 	// reset initOnce so that this new tagger's Init(..) will get called
 	initOnce = sync.Once{}
 	defaultTagger = tagger
+	defaultTaggerLock.Unlock()
 }
 
 // GetDefaultTagger returns the global Tagger instance
 func GetDefaultTagger() Tagger {
-	return defaultTagger
+	defaultTaggerLock.RLock()
+	tagger := defaultTagger
+	defaultTaggerLock.RUnlock()
+	return tagger
 }
 
 // SetCaptureTagger sets the tagger to be used when replaying a capture
