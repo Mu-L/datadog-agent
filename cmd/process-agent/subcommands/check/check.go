@@ -20,6 +20,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/cmd/process-agent/command"
 	sysconfig "github.com/DataDog/datadog-agent/cmd/system-probe/config"
+	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig"
@@ -88,6 +89,7 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 
 			return fxutil.OneShot(runCheckCmd,
 				fx.Supply(cliParams, bundleParams),
+				core.Bundle,
 				processComponent.Bundle,
 			)
 		},
@@ -167,7 +169,7 @@ func runCheckCmd(deps dependencies) error {
 			continue
 		}
 
-		if err = ch.Init(cfg, deps.Hostinfo.Object()); err != nil {
+		if err = ch.Init(cfg, deps.Hostinfo.Object(), true); err != nil {
 			return err
 		}
 		cleanups = append(cleanups, ch.Cleanup)
