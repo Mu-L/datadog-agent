@@ -29,6 +29,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
+var Raw []EbpfTx
+
 type protocol struct {
 	cfg *config.Config
 	// TODO: Do we need to duplicate?
@@ -224,6 +226,7 @@ func (p *protocol) DumpMaps(output *strings.Builder, mapName string, currentMap 
 
 func (p *protocol) processHTTP2(data []byte) {
 	tx := (*EbpfTx)(unsafe.Pointer(&data[0]))
+	Raw = append(Raw, *tx)
 	p.telemetry.Count(tx)
 	p.statkeeper.Process(tx)
 }
