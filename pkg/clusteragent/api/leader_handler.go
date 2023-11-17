@@ -14,6 +14,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/apiserver/leaderelection"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 // LeaderHandler forwards queries to the leader if we are a follower
@@ -37,7 +38,8 @@ func (h *LeaderHandler) RejectOrForwardLeaderQuery(rw http.ResponseWriter, req *
 	if h.le == nil {
 		leaderEngine, err := leaderelection.GetLeaderEngine()
 		if err != nil {
-			http.Error(rw, "Leader election is not enabled", http.StatusServiceUnavailable)
+			log.Errorf("Leader election is not initialized: %v", err)
+			http.Error(rw, "Leader election is not initialized", http.StatusServiceUnavailable)
 			return true
 		}
 		h.le = leaderEngine
@@ -49,11 +51,12 @@ func (h *LeaderHandler) RejectOrForwardLeaderQuery(rw http.ResponseWriter, req *
 
 	ip, err := h.le.GetLeaderIP()
 	if err != nil {
-		http.Error(rw, "Follower unable to forward as leaderForwarder is not available yet", http.StatusServiceUnavailable)
+		log.Errorf("Failed to retrieve leader ip: %v", err)
+		http.Error(rw, "Failed to retrieve leader ip", http.StatusServiceUnavailable)
 		return true
 	}
 
-	h.leaderforwarder.SetLeaderIP(ip)
+	h.leaderforwarder.SetLeaderIP(isp)
 	h.leaderforwarder.Forward(rw, req)
 	return true
 }
