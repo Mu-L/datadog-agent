@@ -307,7 +307,7 @@ func TestGetLeaderIPFollower_ConfigMap(t *testing.T) {
 			},
 		},
 	}
-	storedEndpoints, err := client.CoreV1().Endpoints("default").Create(context.TODO(), endpoints, metav1.CreateOptions{})
+	_, err = client.CoreV1().Endpoints("default").Create(context.TODO(), endpoints, metav1.CreateOptions{})
 	require.NoError(t, err)
 
 	// Run leader election
@@ -379,7 +379,7 @@ func TestGetLeaderIPFollower_Lease(t *testing.T) {
 			},
 		},
 	}
-	storedEndpoints, err := client.CoreV1().Endpoints("default").Create(context.TODO(), endpoints, metav1.CreateOptions{})
+	_, err = client.CoreV1().Endpoints("default").Create(context.TODO(), endpoints, metav1.CreateOptions{})
 	require.NoError(t, err)
 
 	// Run leader election
