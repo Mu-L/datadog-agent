@@ -21,7 +21,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const pldHandlerName = "postDetectedLanguages"
+const pldHandlerName = "language-detection-handler"
 
 // InstallLanguageDetectionEndpoints installs language detection endpoints
 func InstallLanguageDetectionEndpoints(r *mux.Router, lf *api.LeaderForwarder) {
@@ -34,13 +34,6 @@ func preHandler(w http.ResponseWriter, r *http.Request) bool {
 	if !config.Datadog.GetBool("language_detection.enabled") {
 		languagedetection.ErrorResponses.Inc()
 		http.Error(w, "Language detection feature is disabled on the cluster agent", http.StatusServiceUnavailable)
-		return false
-	}
-
-	// Reject if not POST
-	if r.Method != http.MethodPost {
-		languagedetection.ErrorResponses.Inc()
-		http.Error(w, "Only POST requests are supported", http.StatusMethodNotAllowed)
 		return false
 	}
 
