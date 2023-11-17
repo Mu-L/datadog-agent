@@ -8,6 +8,8 @@ package orchestrator
 import (
 	"strings"
 
+	"github.com/patrickmn/go-cache"
+
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
@@ -20,6 +22,10 @@ var CheckName = "orchestrator"
 // ExtraLogContext is used to add check name into log context
 var ExtraLogContext = []interface{}{"check", CheckName}
 
+// NoExpiration maps to go-cache corresponding value
+const NoExpiration = cache.NoExpiration
+
+// The order of this list should be consistent with https://github.com/DataDog/agent-payload/blob/master/proto/process/agent.proto#L647-L673
 const (
 	// K8sUnsetType represents a Kubernetes unset type
 	K8sUnsetType NodeType = iota
@@ -208,11 +214,11 @@ func getTelemetryTags(n NodeType) []string {
 }
 
 // SetCacheStats sets the cache stats for each resource
-func SetCacheStats(resourceListLen int, resourceMsgLen int, nodeType NodeType) {
+func SetCacheStats(resourceListLen int, resourceMsgLen int, nodeType NodeType, ca *cache.Cache) {
 	stats := CheckStats{
 		CacheHits: resourceListLen - resourceMsgLen,
 		CacheMiss: resourceMsgLen,
 		NodeType:  nodeType,
 	}
-	KubernetesResourceCache.Set(BuildStatsKey(nodeType), stats, NoExpiration)
+	ca.Set(BuildStatsKey(nodeType), stats, NoExpiration)
 }
