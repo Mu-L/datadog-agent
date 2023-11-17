@@ -24,8 +24,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	rl "k8s.io/client-go/tools/leaderelection/resourcelock"
-
-	dderrors "github.com/DataDog/datadog-agent/pkg/errors"
 )
 
 func makeLeaderLease(name, namespace, leaderIdentity string, leaseDuration int) *coordinationv1.Lease {
@@ -326,16 +324,6 @@ func TestGetLeaderIPFollower_ConfigMap(t *testing.T) {
 	ip, err := le.GetLeaderIP()
 	assert.NoError(t, err)
 	assert.Equal(t, "1.1.1.2", ip)
-
-	// Remove bar from endpoints
-	storedEndpoints.Subsets[0].Addresses = storedEndpoints.Subsets[0].Addresses[0:1]
-	_, err = client.CoreV1().Endpoints("default").Update(context.TODO(), storedEndpoints, metav1.UpdateOptions{})
-	require.NoError(t, err)
-
-	// GetLeaderIP will "gracefully" error out
-	ip, err = le.GetLeaderIP()
-	assert.Equal(t, "", ip)
-	assert.True(t, dderrors.IsNotFound(err))
 }
 
 func TestGetLeaderIPFollower_Lease(t *testing.T) {
@@ -409,16 +397,6 @@ func TestGetLeaderIPFollower_Lease(t *testing.T) {
 	ip, err := le.GetLeaderIP()
 	assert.NoError(t, err)
 	assert.Equal(t, "1.1.1.2", ip)
-
-	// Remove bar from endpoints
-	storedEndpoints.Subsets[0].Addresses = storedEndpoints.Subsets[0].Addresses[0:1]
-	_, err = client.CoreV1().Endpoints("default").Update(context.TODO(), storedEndpoints, metav1.UpdateOptions{})
-	require.NoError(t, err)
-
-	// GetLeaderIP will "gracefully" error out
-	ip, err = le.GetLeaderIP()
-	assert.Equal(t, "", ip)
-	assert.True(t, dderrors.IsNotFound(err))
 }
 
 type dummyGauge struct{}

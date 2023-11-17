@@ -130,7 +130,7 @@ func run(log log.Component, demultiplexer demultiplexer.Component) error {
 	// start the autoconfig, this will immediately run any configured check
 	common.AC.LoadAndRun(mainCtx)
 
-	if err = api.StartServer(demultiplexer); err != nil {
+	if err = api.StartServer(demultiplexer, nil); err != nil {
 		return log.Errorf("Error while starting agent API, exiting: %v", err)
 	}
 
@@ -243,7 +243,7 @@ func initializeBBSCache(ctx context.Context) error {
 }
 
 func setupClusterCheck(ctx context.Context) (*clusterchecks.Handler, error) {
-	handler, err := clusterchecks.NewHandler(common.AC)
+	handler, err := clusterchecks.NewHandler(common.AC, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -56,7 +56,7 @@ func (h *LeaderHandler) RejectOrForwardLeaderQuery(rw http.ResponseWriter, req *
 		return true
 	}
 
-	h.leaderforwarder.SetLeaderIP(isp)
+	h.leaderforwarder.SetLeaderIP(ip)
 	h.leaderforwarder.Forward(rw, req)
 	return true
 }
