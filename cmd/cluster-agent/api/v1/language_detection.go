@@ -8,6 +8,7 @@
 package v1
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 
@@ -20,29 +21,41 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type handler struct {
-	lh *api.LeaderHandler
-}
+const pldHandlerName = "postDetectedLanguages"
 
 // InstallLanguageDetectionEndpoints installs language detection endpoints
 func InstallLanguageDetectionEndpoints(r *mux.Router, lf *api.LeaderForwarder) {
-	lh := api.NewLeaderHandler(lf)
-	handler := &handler{lh: lh}
-	r.HandleFunc("/languagedetection", api.WithTelemetryWrapper("postDetectedLanguages", handler.postDetectedLanguages)).Methods("POST")
+	leaderHandler := api.WithLeaderProxyHandler(pldHandlerName, lf, preHandler, leaderHandler)
+	r.HandleFunc("/languagedetection", api.WithTelemetryWrapper(pldHandlerName, leaderHandler)).Methods("POST")
 }
 
-func (h *handler) postDetectedLanguages(w http.ResponseWriter, r *http.Request) {
+// preHandler is called by both leader and followers and returns true if the request should be forwarded or handled by the leader
+func preHandler(w http.ResponseWriter, r *http.Request) bool {
 	if !config.Datadog.GetBool("language_detection.enabled") {
 		languagedetection.ErrorResponses.Inc()
 		http.Error(w, "Language detection feature is disabled on the cluster agent", http.StatusServiceUnavailable)
-		return
+		return false
 	}
 
-	// Reject if not leader
-	if h.lh.RejectOrForwardLeaderQuery(w, r) {
-		return
+	// Reject if not POST
+	if r.Method != http.MethodPost {
+		languagedetection.ErrorResponses.Inc()
+		http.Error(w, "Only POST requests are supported", http.StatusMethodNotAllowed)
+		return false
 	}
 
+	// Reject if no body
+	if r.Body == nil {
+		languagedetection.ErrorResponses.Inc()
+		http.Error(w, "Request body is empty", http.StatusBadRequest)
+		return false
+	}
+
+	return true
+}
+
+// leaderHandler is called only by the leader and used to patch the annotations
+func leaderHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Failed to read request body", http.StatusBadRequest)
@@ -56,14 +69,14 @@ func (h *handler) postDetectedLanguages(w http.ResponseWriter, r *http.Request) 
 	// Unmarshal the request body into the protobuf message
 	err = proto.Unmarshal(body, requestData)
 	if err != nil {
-		http.Error(w, "Failed to unmarshal request body", http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Failed to unmarshal request body: %v", err), http.StatusBadRequest)
 		languagedetection.ErrorResponses.Inc()
 		return
 	}
 
 	lp, err := languagedetection.NewLanguagePatcher()
 	if err != nil {
-		http.Error(w, "Failed to get k8s apiserver client", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("failed to initialize patcher: %v", err), http.StatusInternalServerError)
 		languagedetection.ErrorResponses.Inc()
 		return
 	}
