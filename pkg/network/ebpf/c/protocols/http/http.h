@@ -229,7 +229,7 @@ int uprobe__http_process(struct pt_regs *ctx) {
     http_event_t event;
     bpf_memset(&event, 0, sizeof(http_event_t));
     bpf_memcpy(&event.tuple, &args->tup, sizeof(conn_tuple_t));
-    read_into_user_buffer_http(event.http.request_fragment, args->buffer_ptr);
+    read_into_user_buffer_http(event.http.request_fragment, args->buf);
     http_process(&event, NULL, args->tags);
     http_batch_flush(ctx);
 

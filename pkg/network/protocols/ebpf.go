@@ -93,7 +93,15 @@ type TLSProgramType C.tls_prog_t
 
 const (
 	// ProgramTLSHTTPProcess is tail call to process http traffic.
-	ProgramTLSHTTPProcess ProgramType = C.TLS_HTTP_PROCESS
+	ProgramTLSHTTPProcess TLSProgramType = C.TLS_HTTP_PROCESS
 	// ProgramTLSHTTPTermination is tail call to process http termination.
-	ProgramTLSHTTPTermination ProgramType = C.TLS_HTTP_TERMINATION
+	ProgramTLSHTTPTermination TLSProgramType = C.TLS_HTTP_TERMINATION
+	// ProgramTLSHTTP2Process is tail call and the entry point of the TLS HTTP2 decoding.
+	ProgramTLSHTTP2FirstFrame TLSProgramType = C.TLS_HTTP2_FIRST_FRAME
+	// ProgramTLSHTTP2Process is tail call to filter http2 headers.
+	ProgramTLSHTTP2Filter TLSProgramType = C.TLS_HTTP2_FILTER
+	// ProgramTLSHTTP2Process is tail call to parse the previously filtered http2 headers.
+	ProgramTLSHTTP2Parser TLSProgramType = C.TLS_HTTP2_PARSER
+	// ProgramTLSHTTP2Termination is tail call to process TLS HTTP2 termination.
+	ProgramTLSHTTP2Termination TLSProgramType = C.TLS_HTTP2_TERMINATION
 )
