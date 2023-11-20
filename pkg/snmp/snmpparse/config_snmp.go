@@ -115,13 +115,13 @@ func GetConfigCheckSnmp() ([]SNMPConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	ipcAddress, err := config.GetIPCAddress()
+	ipcURL, err := config.GetIPCHttpsURL("/agent/config-check")
 	if err != nil {
 		return nil, err
 	}
 	//TODO: change the configCheckURLSnmp if the snmp check is a cluster check
 	if configCheckURLSnmp == "" {
-		configCheckURLSnmp = fmt.Sprintf("https://%v:%v/agent/config-check", ipcAddress, config.Datadog.GetInt("cmd_port"))
+		configCheckURLSnmp = ipcURL.String()
 	}
 	r, _ := util.DoGet(c, configCheckURLSnmp, util.LeaveConnectionOpen)
 	cr := response.ConfigCheckResponse{}

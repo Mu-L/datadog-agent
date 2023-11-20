@@ -10,7 +10,6 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"net"
 	"time"
 
 	"google.golang.org/grpc"
@@ -39,7 +38,7 @@ func getGRPCClientConn(ctx context.Context, opts ...grpc.DialOption) (*grpc.Clie
 
 	opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tlsConf)))
 
-	target, err := getIPCAddressPort()
+	target, err := config.GetIPCAddressPort("cmd_port")
 	if err != nil {
 		return nil, err
 	}
@@ -79,14 +78,4 @@ func GetDDAgentSecureClient(ctx context.Context, opts ...grpc.DialOption) (pb.Ag
 
 	log.Debug("grpc agent secure client created")
 	return pb.NewAgentSecureClient(conn), nil
-}
-
-// getIPCAddressPort returns the host and port for connecting to the main agent
-func getIPCAddressPort() (string, error) {
-	ipcAddress, err := config.GetIPCAddress()
-	if err != nil {
-		return "", err
-	}
-
-	return net.JoinHostPort(ipcAddress, config.Datadog.GetString("cmd_port")), nil
 }

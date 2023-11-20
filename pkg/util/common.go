@@ -198,17 +198,16 @@ func GetJSONSerializableMap(m interface{}) interface{} {
 
 // GetGoRoutinesDump returns the stack trace of every Go routine of a running Agent.
 func GetGoRoutinesDump() (string, error) {
-	ipcAddress, err := config.GetIPCAddress()
+	pprofURL, err := config.GetIPCURL("http", "expvar_port", "/debug/pprof/goroutine")
 	if err != nil {
 		return "", err
 	}
 
-	pprofURL := fmt.Sprintf("http://%v:%s/debug/pprof/goroutine?debug=2",
-		ipcAddress, config.Datadog.GetString("expvar_port"))
+	pprofURL.RawQuery = "debug=2"
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	client := http.Client{}
-	req, err := http.NewRequest(http.MethodGet, pprofURL, nil)
+	req, err := http.NewRequest(http.MethodGet, pprofURL.String(), nil)
 	if err != nil {
 		return "", err
 	}

@@ -19,7 +19,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
-	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
+	pkgconfigenv "github.com/DataDog/datadog-agent/pkg/config/env"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
 
@@ -58,13 +58,12 @@ func stop(config config.Component, cliParams *cliParams) error {
 	if e != nil {
 		return e
 	}
-	ipcAddress, err := pkgconfig.GetIPCAddress()
+	url, err := pkgconfigenv.GetIPCHttpsURL(config, "/agent/stop")
 	if err != nil {
 		return err
 	}
-	urlstr := fmt.Sprintf("https://%v:%v/agent/stop", ipcAddress, config.GetInt("cmd_port"))
 
-	_, e = util.DoPost(c, urlstr, "application/json", bytes.NewBuffer([]byte{}))
+	_, e = util.DoPost(c, url.String(), "application/json", bytes.NewBuffer([]byte{}))
 	if e != nil {
 		return fmt.Errorf("Error stopping the agent: %v", e)
 	}

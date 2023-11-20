@@ -14,12 +14,13 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/fatih/color"
+
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
 	_ "github.com/DataDog/datadog-agent/pkg/diagnose/connectivity" // no direct calls to connectivity but there is a callback
 	"github.com/DataDog/datadog-agent/pkg/diagnose/diagnosis"
-	"github.com/fatih/color"
 )
 
 // Overall running statistics
@@ -290,7 +291,7 @@ func getDiagnosesFromCurrentProcess(diagCfg diagnosis.Config, senderManager send
 func requestDiagnosesFromAgentProcess(diagCfg diagnosis.Config) ([]diagnosis.Diagnoses, error) {
 	// Get client to Agent's RPC call
 	c := util.GetClient(false)
-	ipcAddress, err := pkgconfig.GetIPCAddress()
+	diagnoseURL, err := pkgconfig.GetIPCHttpsURL("/agent/diagnose")
 	if err != nil {
 		return nil, fmt.Errorf("error getting IPC address for the agent: %w", err)
 	}
@@ -300,9 +301,6 @@ func requestDiagnosesFromAgentProcess(diagCfg diagnosis.Config) ([]diagnosis.Dia
 		return nil, fmt.Errorf("auth error: %w", err)
 	}
 
-	// Form call end-point
-	diagnoseUrl := fmt.Sprintf("https://%v:%v/agent/diagnose", ipcAddress, pkgconfig.Datadog.GetInt("cmd_port"))
-
 	// Serialized diag config to pass it to Agent execution context
 	var cfgSer []byte
 	if cfgSer, err = json.Marshal(diagCfg); err != nil {
@@ -311,7 +309,7 @@ func requestDiagnosesFromAgentProcess(diagCfg diagnosis.Config) ([]diagnosis.Dia
 
 	// Run diagnose code inside Agent process
 	var response []byte
-	response, err = util.DoPost(c, diagnoseUrl, "application/json", bytes.NewBuffer(cfgSer))
+	response, err = util.DoPost(c, diagnoseURL.String(), "application/json", bytes.NewBuffer(cfgSer))
 	if err != nil {
 		if response != nil && string(response) != "" {
 			return nil, fmt.Errorf("error getting diagnoses from running agent: %s", strings.TrimSpace(string(response)))

@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -23,7 +24,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
-	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
+	pkgconfigenv "github.com/DataDog/datadog-agent/pkg/config/env"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
@@ -70,16 +71,15 @@ func MakeCommand(globalParamsGetter func() GlobalParams) *cobra.Command {
 func requestHealth(log log.Component, config config.Component, cliParams *cliParams) error {
 	c := util.GetClient(false) // FIX: get certificates right then make this true
 
-	ipcAddress, err := pkgconfig.GetIPCAddress()
+	var url *url.URL
+	var err error
+	if flavor.GetFlavor() == flavor.ClusterAgent {
+		url, err = pkgconfigenv.GetIPCURL(config, "https", "cluster_agent.cmd_port", "/status/health")
+	} else {
+		url, err = pkgconfigenv.GetIPCURL(config, "https", "cmd_port", "/agent/status/health")
+	}
 	if err != nil {
 		return err
-	}
-
-	var urlstr string
-	if flavor.GetFlavor() == flavor.ClusterAgent {
-		urlstr = fmt.Sprintf("https://%v:%v/status/health", ipcAddress, pkgconfig.Datadog.GetInt("cluster_agent.cmd_port"))
-	} else {
-		urlstr = fmt.Sprintf("https://%v:%v/agent/status/health", ipcAddress, pkgconfig.Datadog.GetInt("cmd_port"))
 	}
 
 	// Set session token
@@ -91,7 +91,7 @@ func requestHealth(log log.Component, config config.Component, cliParams *cliPar
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cliParams.timeout)*time.Second)
 	defer cancel()
 
-	r, err := util.DoGetWithContext(ctx, c, urlstr, util.LeaveConnectionOpen)
+	r, err := util.DoGetWithContext(ctx, c, url.String(), util.LeaveConnectionOpen)
 	if err != nil {
 		var errMap = make(map[string]string)
 		json.Unmarshal(r, &errMap) //nolint:errcheck

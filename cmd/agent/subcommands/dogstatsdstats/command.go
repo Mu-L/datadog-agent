@@ -69,11 +69,10 @@ func requestDogstatsdStats(log log.Component, config config.Component, cliParams
 	var e error
 	var s string
 	c := util.GetClient(false) // FIX: get certificates right then make this true
-	ipcAddress, err := pkgconfig.GetIPCAddress()
+	url, err := pkgconfig.GetIPCHttpsURL("/agent/dogstatsd-stats")
 	if err != nil {
 		return err
 	}
-	urlstr := fmt.Sprintf("https://%v:%v/agent/dogstatsd-stats", ipcAddress, pkgconfig.Datadog.GetInt("cmd_port"))
 
 	// Set session token
 	e = util.SetAuthToken()
@@ -81,7 +80,7 @@ func requestDogstatsdStats(log log.Component, config config.Component, cliParams
 		return e
 	}
 
-	r, e := util.DoGet(c, urlstr, util.LeaveConnectionOpen)
+	r, e := util.DoGet(c, url.String(), util.LeaveConnectionOpen)
 	if e != nil {
 		var errMap = make(map[string]string)
 		json.Unmarshal(r, &errMap) //nolint:errcheck

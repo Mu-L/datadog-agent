@@ -1868,6 +1868,23 @@ func GetIPCAddress() (string, error) {
 	return pkgconfigenv.GetIPCAddress(Datadog)
 }
 
+// GetIPCAddressPort returns the IPC address and port, or an error if the address is not local
+func GetIPCAddressPort(portConfig string) (string, error) {
+	return pkgconfigenv.GetIPCAddressPort(Datadog, portConfig)
+}
+
+// GetIPCHttpsURL returns the URL for the IPC host with the given path and https scheme,
+// or an error if the IPC address is not local
+func GetIPCHttpsURL(path string) (*url.URL, error) {
+	return pkgconfigenv.GetIPCHttpsURL(Datadog, path)
+}
+
+// GetIPCURL returns the URL for the IPC host using the given portConfig, with the given path and scheme,
+// or an error if the IPC address is not local
+func GetIPCURL(scheme, portConfig, path string) (*url.URL, error) {
+	return pkgconfigenv.GetIPCURL(Datadog, scheme, portConfig, path)
+}
+
 // pathExists returns true if the given path exists
 func pathExists(path string) bool {
 	_, err := os.Stat(path)

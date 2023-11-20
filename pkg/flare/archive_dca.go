@@ -167,23 +167,22 @@ func getClusterAgentDiagnose(fb flaretypes.FlareBuilder, senderManager sender.Di
 }
 
 func getDCATaggerList() ([]byte, error) {
-	ipcAddress, err := config.GetIPCAddress()
+	taggerListURL, err := config.GetIPCURL("https", "cluster_agent.cmd_port", "/tagger-list")
 	if err != nil {
 		return nil, err
 	}
 
-	taggerListURL := fmt.Sprintf("https://%v:%v/tagger-list", ipcAddress, config.Datadog.GetInt("cluster_agent.cmd_port"))
-
-	return getTaggerList(taggerListURL)
+	return getTaggerList(taggerListURL.String())
 }
 
 func getDCAWorkloadList() ([]byte, error) {
-	ipcAddress, err := config.GetIPCAddress()
+	url, err := config.GetIPCURL("https", "cluster_agent.cmd_port", "/workload-list")
 	if err != nil {
 		return nil, err
 	}
 
-	return getWorkloadList(fmt.Sprintf("https://%v:%v/workload-list?verbose=true", ipcAddress, config.Datadog.GetInt("cluster_agent.cmd_port")))
+	url.RawQuery = "verbose=true"
+	return getWorkloadList(url.String())
 }
 
 func getPerformanceProfileDCA(fb flaretypes.FlareBuilder, pdata ProfileData) {

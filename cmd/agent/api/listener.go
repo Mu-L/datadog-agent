@@ -6,24 +6,14 @@
 package api
 
 import (
-	"fmt"
 	"net"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
 )
 
-// getIPCAddressPort returns a listening connection
-func getIPCAddressPort() (string, error) {
-	address, err := config.GetIPCAddress()
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%v:%v", address, config.Datadog.GetInt("cmd_port")), nil
-}
-
 // getListener returns a listening connection
 func getListener() (net.Listener, error) {
-	address, err := getIPCAddressPort()
+	address, err := config.GetIPCAddressPort("cmd_port")
 	if err != nil {
 		return nil, err
 	}

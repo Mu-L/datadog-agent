@@ -19,7 +19,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
-	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
+	pkgconfigenv "github.com/DataDog/datadog-agent/pkg/config/env"
 	pkgdiagnose "github.com/DataDog/datadog-agent/pkg/diagnose"
 	"github.com/DataDog/datadog-agent/pkg/diagnose/diagnosis"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
@@ -207,14 +207,12 @@ func printPayload(log log.Component, config config.Component, cliParams *cliPara
 	}
 
 	c := util.GetClient(false)
-	ipcAddress, err := pkgconfig.GetIPCAddress()
+	apiConfigURL, err := pkgconfigenv.GetIPCHttpsURL(config, metadataEndpoint+cliParams.payloadName)
 	if err != nil {
 		return err
 	}
-	apiConfigURL := fmt.Sprintf("https://%v:%d%s%s",
-		ipcAddress, config.GetInt("cmd_port"), metadataEndpoint, cliParams.payloadName)
 
-	r, err := util.DoGet(c, apiConfigURL, util.CloseConnection)
+	r, err := util.DoGet(c, apiConfigURL.String(), util.CloseConnection)
 	if err != nil {
 		return fmt.Errorf("Could not fetch metadata v5 payload: %s", err)
 	}

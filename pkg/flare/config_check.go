@@ -36,12 +36,12 @@ func GetConfigCheck(w io.Writer, withDebug bool) error {
 	if err != nil {
 		return err
 	}
-	ipcAddress, err := config.GetIPCAddress()
+	ipcAddress, err := config.GetIPCHttpsURL("/agent/config-check")
 	if err != nil {
 		return err
 	}
 	if configCheckURL == "" {
-		configCheckURL = fmt.Sprintf("https://%v:%v/agent/config-check", ipcAddress, config.Datadog.GetInt("cmd_port"))
+		configCheckURL = ipcAddress.String()
 	}
 	r, err := util.DoGet(c, configCheckURL, util.LeaveConnectionOpen)
 	if err != nil {

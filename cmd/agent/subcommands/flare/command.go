@@ -292,13 +292,11 @@ func makeFlare(flareComp flare.Component, log log.Component, config config.Compo
 func requestArchive(flareComp flare.Component, pdata flare.ProfileData) (string, error) {
 	fmt.Fprintln(color.Output, color.BlueString("Asking the agent to build the flare archive."))
 	c := util.GetClient(false) // FIX: get certificates right then make this true
-	ipcAddress, err := pkgconfig.GetIPCAddress()
+	url, err := pkgconfig.GetIPCHttpsURL("/agent/flare")
 	if err != nil {
 		fmt.Fprintln(color.Output, color.RedString(fmt.Sprintf("Error getting IPC address for the agent: %s", err)))
 		return createArchive(flareComp, pdata, err)
 	}
-
-	urlstr := fmt.Sprintf("https://%v:%v/agent/flare", ipcAddress, pkgconfig.Datadog.GetInt("cmd_port"))
 
 	// Set session token
 	if err = util.SetAuthToken(); err != nil {
@@ -312,7 +310,7 @@ func requestArchive(flareComp flare.Component, pdata flare.ProfileData) (string,
 		return "", err
 	}
 
-	r, err := util.DoPost(c, urlstr, "application/json", bytes.NewBuffer(p))
+	r, err := util.DoPost(c, url.String(), "application/json", bytes.NewBuffer(p))
 	if err != nil {
 		if r != nil && string(r) != "" {
 			fmt.Fprintf(color.Output, "The agent ran into an error while making the flare: %s\n", color.RedString(string(r)))

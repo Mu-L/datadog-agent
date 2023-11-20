@@ -6,7 +6,6 @@
 package api
 
 import (
-	"fmt"
 	"net"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
@@ -14,9 +13,9 @@ import (
 
 // newListener creates a listening connection
 func newListener() (net.Listener, error) {
-	address, err := config.GetIPCAddress()
+	addressPort, err := config.GetIPCAddressPort("security_agent.cmd_port")
 	if err != nil {
 		return nil, err
 	}
-	return net.Listen("tcp", fmt.Sprintf("%v:%v", address, config.Datadog.GetInt("security_agent.cmd_port")))
+	return net.Listen("tcp", addressPort)
 }

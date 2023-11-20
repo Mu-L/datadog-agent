@@ -18,7 +18,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
-	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
+	pkgconfigenv "github.com/DataDog/datadog-agent/pkg/config/env"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
 
@@ -63,13 +63,11 @@ func secret(log log.Component, config config.Component, cliParams *cliParams) er
 
 func showSecretInfo(config config.Component) error {
 	c := util.GetClient(false)
-	ipcAddress, err := pkgconfig.GetIPCAddress()
+	apiConfigURL, err := pkgconfigenv.GetIPCHttpsURL(config, "/agent/secrets")
 	if err != nil {
 		return err
 	}
-	apiConfigURL := fmt.Sprintf("https://%v:%v/agent/secrets", ipcAddress, config.GetInt("cmd_port"))
-
-	r, err := util.DoGet(c, apiConfigURL, util.LeaveConnectionOpen)
+	r, err := util.DoGet(c, apiConfigURL.String(), util.LeaveConnectionOpen)
 	if err != nil {
 		var errMap = make(map[string]string)
 		json.Unmarshal(r, &errMap) //nolint:errcheck

@@ -8,6 +8,8 @@ package env
 import (
 	"fmt"
 	"net"
+	"net/url"
+	"strconv"
 
 	pkgconfigmodel "github.com/DataDog/datadog-agent/pkg/config/model"
 )
@@ -43,4 +45,41 @@ func GetIPCAddress(cfg pkgconfigmodel.Reader) (string, error) {
 		return "", fmt.Errorf("ipc_address: %s", err)
 	}
 	return address, nil
+}
+
+// GetIPCAddressPort returns the IPC address and port, or an error if the address is not local
+func GetIPCAddressPort(cfg pkgconfigmodel.Reader, portConfig string) (string, error) {
+	address, err := GetIPCAddress(cfg)
+	if err != nil {
+		return "", err
+	}
+
+	port := cfg.GetInt(portConfig)
+	if port <= 0 {
+		return "", fmt.Errorf("invalid value for %s: %d", portConfig, port)
+	}
+
+	return net.JoinHostPort(address, strconv.Itoa(port)), nil
+}
+
+// GetIPCHttpsURL returns the URL for the IPC host with the given path and https scheme,
+// or an error if the IPC address is not local
+func GetIPCHttpsURL(cfg pkgconfigmodel.Reader, path string) (*url.URL, error) {
+	return GetIPCURL(cfg, "https", "cmd_port", path)
+}
+
+// GetIPCURL returns the URL for the IPC host using the given portConfig, with the given path and scheme,
+// or an error if the IPC address is not local
+func GetIPCURL(cfg pkgconfigmodel.Reader, scheme, portConfig, path string) (*url.URL, error) {
+	addressPort, err := GetIPCAddressPort(cfg, portConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	ipcURL := &url.URL{
+		Scheme: scheme,
+		Host:   addressPort,
+		Path:   path,
+	}
+	return ipcURL, nil
 }

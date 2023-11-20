@@ -25,7 +25,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig"
 	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig/sysprobeconfigimpl"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
-	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
+	pkgconfigenv "github.com/DataDog/datadog-agent/pkg/config/env"
 	"github.com/DataDog/datadog-agent/pkg/status"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/scrubber"
@@ -141,22 +141,17 @@ func requestStatus(config config.Component, cliParams *cliParams) error {
 	if !cliParams.prettyPrintJSON && !cliParams.jsonStatus {
 		fmt.Printf("Getting the status from the agent.\n\n")
 	}
-	ipcAddress, err := pkgconfig.GetIPCAddress()
-	if err != nil {
-		return err
-	}
 
 	v := url.Values{}
 	if cliParams.verbose {
 		v.Set("verbose", "true")
 	}
 
-	url := url.URL{
-		Scheme:   "https",
-		Host:     fmt.Sprintf("%v:%v", ipcAddress, config.GetInt("cmd_port")),
-		Path:     "/agent/status",
-		RawQuery: v.Encode(),
+	url, err := pkgconfigenv.GetIPCHttpsURL(config, "/agent/status")
+	if err != nil {
+		return err
 	}
+	url.RawQuery = v.Encode()
 
 	r, err := makeRequest(url.String())
 	if err != nil {

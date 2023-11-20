@@ -14,6 +14,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/api/security"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
+	"github.com/DataDog/datadog-agent/pkg/config"
 )
 
 var (
@@ -49,7 +50,7 @@ func parseToken(token string) (interface{}, error) {
 func buildSelfSignedKeyPair() ([]byte, []byte) {
 
 	hosts := []string{"127.0.0.1", "localhost", "::1"}
-	ipcAddr, err := getIPCAddressPort()
+	ipcAddr, err := config.GetIPCAddressPort("cmd_port")
 	if err == nil {
 		hosts = append(hosts, ipcAddr)
 	}
@@ -84,7 +85,7 @@ func initializeTLS() {
 		panic("bad certs")
 	}
 
-	tlsAddr, err = getIPCAddressPort()
+	tlsAddr, err = config.GetIPCAddressPort("cmd_port")
 	if err != nil {
 		panic("unable to get IPC address and port")
 	}

@@ -20,7 +20,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
-	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
+	pkgconfigenv "github.com/DataDog/datadog-agent/pkg/config/env"
 	"github.com/DataDog/datadog-agent/pkg/logs/diagnostic"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
@@ -55,7 +55,7 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 }
 
 func streamEventPlatform(log log.Component, config config.Component, cliParams *cliParams) error {
-	ipcAddress, err := pkgconfig.GetIPCAddress()
+	url, err := pkgconfigenv.GetIPCHttpsURL(config, "/agent/stream-event-platform")
 	if err != nil {
 		return err
 	}
@@ -66,8 +66,7 @@ func streamEventPlatform(log log.Component, config config.Component, cliParams *
 		return err
 	}
 
-	urlstr := fmt.Sprintf("https://%v:%v/agent/stream-event-platform", ipcAddress, config.GetInt("cmd_port"))
-	return streamRequest(urlstr, body, func(chunk []byte) {
+	return streamRequest(url.String(), body, func(chunk []byte) {
 		fmt.Print(string(chunk))
 	})
 }

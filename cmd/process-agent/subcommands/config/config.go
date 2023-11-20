@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/process"
 	apiutil "github.com/DataDog/datadog-agent/pkg/api/util"
 	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
+	pkgconfigenv "github.com/DataDog/datadog-agent/pkg/config/env"
 	"github.com/DataDog/datadog-agent/pkg/config/settings"
 	settingshttp "github.com/DataDog/datadog-agent/pkg/config/settings/http"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
@@ -175,17 +176,11 @@ func getConfigValue(deps dependencies, args []string) error {
 
 func getClient(cfg ddconfig.Reader) (settings.Client, error) {
 	httpClient := apiutil.GetClient(false)
-	ipcAddress, err := ddconfig.GetIPCAddress()
-
-	port := cfg.GetInt("process_config.cmd_port")
-	if port <= 0 {
-		return nil, fmt.Errorf("invalid process_config.cmd_port -- %d", port)
-	}
-
-	ipcAddressWithPort := fmt.Sprintf("http://%s:%d/config", ipcAddress, port)
+	ipcAddress, err := pkgconfigenv.GetIPCURL(cfg, "http", "process_config.cmd_port", "/config")
 	if err != nil {
 		return nil, err
 	}
-	settingsClient := settingshttp.NewClient(httpClient, ipcAddressWithPort, "process-agent")
+
+	settingsClient := settingshttp.NewClient(httpClient, ipcAddress.String(), "process-agent")
 	return settingsClient, nil
 }

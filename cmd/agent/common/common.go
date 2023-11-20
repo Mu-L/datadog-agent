@@ -10,7 +10,6 @@ package common
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"path/filepath"
 
@@ -67,10 +66,10 @@ func GetVersion(w http.ResponseWriter, r *http.Request) {
 
 // NewSettingsClient returns a configured runtime settings client.
 func NewSettingsClient() (settings.Client, error) {
-	ipcAddress, err := config.GetIPCAddress()
+	hostURL, err := config.GetIPCHttpsURL("/agent/config")
 	if err != nil {
 		return nil, err
 	}
 	hc := util.GetClient(false)
-	return settingshttp.NewClient(hc, fmt.Sprintf("https://%v:%v/agent/config", ipcAddress, config.Datadog.GetInt("cmd_port")), "agent"), nil
+	return settingshttp.NewClient(hc, hostURL.String(), "agent"), nil
 }

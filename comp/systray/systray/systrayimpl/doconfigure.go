@@ -12,7 +12,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/api/security"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
-	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
+	pkgconfigenv "github.com/DataDog/datadog-agent/pkg/config/env"
 )
 
 func onConfigure(s *systrayImpl) {
@@ -39,17 +39,16 @@ func doConfigure(s *systrayImpl) error {
 
 	// Get the CSRF token from the agent
 	c := util.GetClient(false) // FIX: get certificates right then make this true
-	ipcAddress, err := pkgconfig.GetIPCAddress()
+	ipcURL, err := pkgconfigenv.GetIPCHttpsURL(s.config, "/agent/gui/csrf-token")
 	if err != nil {
 		return err
 	}
-	urlstr := fmt.Sprintf("https://%v:%v/agent/gui/csrf-token", ipcAddress, s.config.GetInt("cmd_port"))
 	err = util.SetAuthToken()
 	if err != nil {
 		return err
 	}
 
-	csrfToken, err := util.DoGet(c, urlstr, util.LeaveConnectionOpen)
+	csrfToken, err := util.DoGet(c, ipcURL.String(), util.LeaveConnectionOpen)
 	if err != nil {
 		var errMap = make(map[string]string)
 		err = json.Unmarshal(csrfToken, &errMap)

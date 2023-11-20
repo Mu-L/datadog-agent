@@ -18,7 +18,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/pkg/api/security"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
-	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
+	pkgconfigenv "github.com/DataDog/datadog-agent/pkg/config/env"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
 
@@ -51,7 +51,7 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 }
 
 func launchGui(config config.Component, cliParams *cliParams) error {
-	guiPort := pkgconfig.Datadog.GetString("GUI_port")
+	guiPort := config.GetString("GUI_port")
 	if guiPort == "-1" {
 		return fmt.Errorf("GUI not enabled: to enable, please set an appropriate port in your datadog.yaml file")
 	}
@@ -64,17 +64,16 @@ func launchGui(config config.Component, cliParams *cliParams) error {
 
 	// Get the CSRF token from the agent
 	c := util.GetClient(false) // FIX: get certificates right then make this true
-	ipcAddress, err := pkgconfig.GetIPCAddress()
+	url, err := pkgconfigenv.GetIPCHttpsURL(config, "/agent/gui/csrf-token")
 	if err != nil {
 		return err
 	}
-	urlstr := fmt.Sprintf("https://%v:%v/agent/gui/csrf-token", ipcAddress, pkgconfig.Datadog.GetInt("cmd_port"))
 	err = util.SetAuthToken()
 	if err != nil {
 		return err
 	}
 
-	csrfToken, err := util.DoGet(c, urlstr, util.LeaveConnectionOpen)
+	csrfToken, err := util.DoGet(c, url.String(), util.LeaveConnectionOpen)
 	if err != nil {
 		var errMap = make(map[string]string)
 		json.Unmarshal(csrfToken, &errMap) //nolint:errcheck

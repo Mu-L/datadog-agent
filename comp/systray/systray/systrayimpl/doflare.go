@@ -172,11 +172,10 @@ func requestFlare(s *systrayImpl, caseID, customerEmail string) (response string
 	s.log.Debug("Asking the agent to build the flare archive.")
 
 	c := util.GetClient(false) // FIX: get certificates right then make this true
-	ipcAddress, err := config.GetIPCAddress()
+	url, err := config.GetIPCHttpsURL("/agent/flare")
 	if err != nil {
 		return "", err
 	}
-	urlstr := fmt.Sprintf("https://%v:%v/agent/flare", ipcAddress, config.Datadog.GetInt("cmd_port"))
 
 	// Set session token
 	e = util.SetAuthToken()
@@ -184,7 +183,7 @@ func requestFlare(s *systrayImpl, caseID, customerEmail string) (response string
 		return
 	}
 
-	r, e := util.DoPost(c, urlstr, "application/json", bytes.NewBuffer([]byte{}))
+	r, e := util.DoPost(c, url.String(), "application/json", bytes.NewBuffer([]byte{}))
 	var filePath string
 	if e != nil {
 		// The agent could not make the flare, try create one from this context

@@ -307,14 +307,12 @@ func getConfigCheck() ([]byte, error) {
 }
 
 func getAgentTaggerList() ([]byte, error) {
-	ipcAddress, err := config.GetIPCAddress()
+	taggerListURL, err := config.GetIPCHttpsURL("/agent/tagger-list")
 	if err != nil {
 		return nil, err
 	}
 
-	taggerListURL := fmt.Sprintf("https://%v:%v/agent/tagger-list", ipcAddress, config.Datadog.GetInt("cmd_port"))
-
-	return getTaggerList(taggerListURL)
+	return getTaggerList(taggerListURL.String())
 }
 
 func getProcessAgentTaggerList() ([]byte, error) {
@@ -348,12 +346,13 @@ func getTaggerList(remoteURL string) ([]byte, error) {
 }
 
 func getAgentWorkloadList() ([]byte, error) {
-	ipcAddress, err := config.GetIPCAddress()
+	url, err := config.GetIPCHttpsURL("/agent/workload-list")
 	if err != nil {
 		return nil, err
 	}
 
-	return getWorkloadList(fmt.Sprintf("https://%v:%v/agent/workload-list?verbose=true", ipcAddress, config.Datadog.GetInt("cmd_port")))
+	url.RawQuery = "verbose=true"
+	return getWorkloadList(url.String())
 }
 
 func getWorkloadList(url string) ([]byte, error) {

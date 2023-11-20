@@ -9,6 +9,7 @@ package workloadlist
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 
 	"go.uber.org/fx"
 
@@ -16,7 +17,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
-	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
+	pkgconfigenv "github.com/DataDog/datadog-agent/pkg/config/env"
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
@@ -82,7 +83,7 @@ func workloadList(log log.Component, config config.Component, cliParams *cliPara
 		return err
 	}
 
-	url, err := workloadURL(cliParams.verboseList)
+	url, err := workloadURL(config, cliParams.verboseList)
 	if err != nil {
 		return err
 	}
@@ -107,22 +108,21 @@ func workloadList(log log.Component, config config.Component, cliParams *cliPara
 	return nil
 }
 
-func workloadURL(verbose bool) (string, error) {
-	ipcAddress, err := pkgconfig.GetIPCAddress()
+func workloadURL(config config.Component, verbose bool) (string, error) {
+	var url *url.URL
+	var err error
+	if flavor.GetFlavor() == flavor.ClusterAgent {
+		url, err = pkgconfigenv.GetIPCURL(config, "https", "cluster_agent.cmd_port", "/workload-list")
+	} else {
+		url, err = pkgconfigenv.GetIPCURL(config, "https", "cmd_port", "/agent/workload-list")
+	}
 	if err != nil {
 		return "", err
 	}
 
-	var prefix string
-	if flavor.GetFlavor() == flavor.ClusterAgent {
-		prefix = fmt.Sprintf("https://%v:%v/workload-list", ipcAddress, pkgconfig.Datadog.GetInt("cluster_agent.cmd_port"))
-	} else {
-		prefix = fmt.Sprintf("https://%v:%v/agent/workload-list", ipcAddress, pkgconfig.Datadog.GetInt("cmd_port"))
-	}
-
 	if verbose {
-		return prefix + "?verbose=true", nil
+		url.RawQuery = "verbose=true"
 	}
 
-	return prefix, nil
+	return url.String(), nil
 }

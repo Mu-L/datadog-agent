@@ -7,7 +7,7 @@
 package taggerlist
 
 import (
-	"fmt"
+	"net/url"
 
 	"go.uber.org/fx"
 
@@ -15,7 +15,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
-	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
+	pkgconfigenv "github.com/DataDog/datadog-agent/pkg/config/env"
 	tagger_api "github.com/DataDog/datadog-agent/pkg/tagger/api"
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
@@ -81,17 +81,16 @@ func taggerList(log log.Component, config config.Component, cliParams *cliParams
 }
 
 func getTaggerURL(config config.Component) (string, error) {
-	ipcAddress, err := pkgconfig.GetIPCAddress()
+	var url *url.URL
+	var err error
+	if flavor.GetFlavor() == flavor.ClusterAgent {
+		url, err = pkgconfigenv.GetIPCURL(config, "https", "cluster_agent.cmd_port", "/tagger-list")
+	} else {
+		url, err = pkgconfigenv.GetIPCURL(config, "https", "cmd_port", "/agent/tagger-list")
+	}
 	if err != nil {
 		return "", err
 	}
 
-	var urlstr string
-	if flavor.GetFlavor() == flavor.ClusterAgent {
-		urlstr = fmt.Sprintf("https://%v:%v/tagger-list", ipcAddress, pkgconfig.Datadog.GetInt("cluster_agent.cmd_port"))
-	} else {
-		urlstr = fmt.Sprintf("https://%v:%v/agent/tagger-list", ipcAddress, pkgconfig.Datadog.GetInt("cmd_port"))
-	}
-
-	return urlstr, nil
+	return url.String(), nil
 }
