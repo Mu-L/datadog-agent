@@ -39,7 +39,7 @@ var (
 // metric family generator factory.
 func NewCustomResourceDefinitionFactory(client *apiserver.APIClient) customresource.RegistryFactory {
 	return &crdFactory{
-		client: client.CRDClient,
+		client: client.CRDInformerClient,
 	}
 }
 
