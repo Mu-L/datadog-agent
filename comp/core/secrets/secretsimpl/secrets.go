@@ -166,10 +166,7 @@ func (r *secretResolver) registerSecretOrigin(handle string, origin string, yaml
 
 // Configure initializes the executable command and other options of the secrets component
 func (r *secretResolver) Configure(command string, arguments []string, timeout, maxSize int, groupExecPerm, removeLinebreak bool) {
-	if !r.enabled {
-		log.Errorf("Agent secrets is disabled by caller")
-		return
-	}
+	r.enabled = true
 	r.backendCommand = command
 	r.backendArguments = arguments
 	r.backendTimeout = timeout
