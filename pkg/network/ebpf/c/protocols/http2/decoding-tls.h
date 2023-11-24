@@ -144,6 +144,57 @@ static __always_inline bool tls_get_first_frame(tls_dispatcher_arguments_t *info
     return false;
 }
 
+// find_relevant_frames iterates over the packet and finds frames that are
+// relevant for us. The frames info and location are stored in the `frames_array` array,
+// and the number of frames found is returned.
+//
+// We consider frames as relevant if they are either:
+// - HEADERS frames
+// - RST_STREAM frames
+// - DATA frames with the END_STREAM flag set
+static __always_inline __u8 tls_find_relevant_frames(tls_dispatcher_arguments_t *info, http2_frame_with_offset *frames_array, __u8 original_index) {
+    bool is_headers_or_rst_frame, is_data_end_of_stream;
+    __u8 interesting_frame_index = 0;
+    struct http2_frame current_frame = {};
+
+    // We may have found a relevant frame already in http2_handle_first_frame,
+    // so we need to adjust the index accordingly. We do not set
+    // interesting_frame_index to original_index directly, as this will confuse
+    // the verifier, leading it into thinking the index could have an arbitrary
+    // value.
+    if (original_index == 1) {
+        interesting_frame_index = 1;
+    }
+
+#pragma unroll(TLS_HTTP2_MAX_FRAMES_TO_FILTER)
+    for (__u32 iteration = 0; iteration < TLS_HTTP2_MAX_FRAMES_TO_FILTER; ++iteration) {
+        // Checking we can read HTTP2_FRAME_HEADER_SIZE from the skb.
+        if (info->off + HTTP2_FRAME_HEADER_SIZE > info->len) {
+            break;
+        }
+
+        BUF_READ(http2_frame_header, &current_frame, info->buf + info->off);
+        info->off += HTTP2_FRAME_HEADER_SIZE;
+        if (!format_http2_frame_header(&current_frame)) {
+            break;
+        }
+
+        // END_STREAM can appear only in Headers and Data frames.
+        // Check out https://datatracker.ietf.org/doc/html/rfc7540#section-6.1 for data frame, and
+        // https://datatracker.ietf.org/doc/html/rfc7540#section-6.2 for headers frame.
+        is_headers_or_rst_frame = current_frame.type == kHeadersFrame || current_frame.type == kRSTStreamFrame;
+        is_data_end_of_stream = ((current_frame.flags & HTTP2_END_OF_STREAM) == HTTP2_END_OF_STREAM) && (current_frame.type == kDataFrame);
+        if (interesting_frame_index < HTTP2_MAX_FRAMES_ITERATIONS && (is_headers_or_rst_frame || is_data_end_of_stream)) {
+            frames_array[interesting_frame_index].frame = current_frame;
+            frames_array[interesting_frame_index].offset = info->off;
+            interesting_frame_index++;
+        }
+        info->off += current_frame.length;
+    }
+
+    return interesting_frame_index;
+}
+
 SEC("uprobe/http2_tls_handle_first_frame")
 int uprobe__http2_tls_handle_first_frame(struct pt_regs *ctx) {
     const u32 zero = 0;
@@ -203,11 +254,74 @@ int uprobe__http2_tls_handle_first_frame(struct pt_regs *ctx) {
 
 SEC("uprobe/http2_tls_filter")
 int uprobe__http2_tls_filter(struct pt_regs *ctx) {
+    const u32 zero = 0;
+
+    tls_dispatcher_arguments_t *info = bpf_map_lookup_elem(&tls_dispatcher_arguments, &zero);
+    if (info == NULL) {
+        log_debug("[http2_tls_handle_first_frame] could not get tls info from map");
+        return 0;
+    }
+
+    log_debug("[grpcdebug] > frame filter: off=%lu", info->off);
+
+    // A single packet can contain multiple HTTP/2 frames, due to instruction limitations we have divided the
+    // processing into multiple tail calls, where each tail call process a single frame. We must have context when
+    // we are processing the frames, for example, to know how many bytes have we read in the packet, or it we reached
+    // to the maximum number of frames we can process. For that we are checking if the iteration context already exists.
+    // If not, creating a new one to be used for further processing
+    http2_tail_call_state_t *iteration_value = bpf_map_lookup_elem(&http2_frames_to_process, &zero);
+    if (iteration_value == NULL) {
+        return 0;
+    }
+
+    // Some functions might change and override fields in dispatcher_args_copy.skb_info. Since it is used as a key
+    // in a map, we cannot allow it to be modified. Thus, having a local copy of skb_info.
+    tls_dispatcher_arguments_t info_copy = *info;
+
+    // The verifier cannot tell if `iteration_value->frames_count` is 0 or 1, so we have to help it. The value is
+    // 1 if we have found an interesting frame in `socket__http2_handle_first_frame`, otherwise it is 0.
+    // filter frames
+    iteration_value->frames_count = tls_find_relevant_frames(&info_copy, iteration_value->frames_array, iteration_value->frames_count);
+    // TODO log_debug("[grpcdebug] > frame filter: frames_count=%u", iteration_value->frames_count);
+
+    frame_header_remainder_t new_frame_state = { 0 };
+    if (info_copy.off > info_copy.len) {
+        // We have a remainder
+        new_frame_state.remainder = info_copy.off - info_copy.len;
+        bpf_map_update_elem(&http2_remainder, &info_copy.tup, &new_frame_state, BPF_ANY);
+    }
+
+    if (info_copy.off < info_copy.len && info_copy.off + HTTP2_FRAME_HEADER_SIZE > info_copy.len) {
+        // We have a frame header remainder
+        new_frame_state.remainder = HTTP2_FRAME_HEADER_SIZE - (info_copy.len - info_copy.off);
+        bpf_memset(new_frame_state.buf, 0, HTTP2_FRAME_HEADER_SIZE);
+#pragma unroll(HTTP2_FRAME_HEADER_SIZE)
+        for (__u32 iteration = 0; iteration < HTTP2_FRAME_HEADER_SIZE && new_frame_state.remainder + iteration < HTTP2_FRAME_HEADER_SIZE; ++iteration) {
+            BUF_READ(http2_1_bytes, new_frame_state.buf + iteration, info_copy.buf + info_copy.off + iteration);
+        }
+        new_frame_state.header_length = HTTP2_FRAME_HEADER_SIZE - new_frame_state.remainder;
+        bpf_map_update_elem(&http2_remainder, &info_copy.tup, &new_frame_state, BPF_ANY);
+    }
+
+    if (iteration_value->frames_count == 0) {
+        return 0;
+    }
+
+    log_debug("[grpcdebug] > frame filter: frames_count=%u", iteration_value->frames_count);
+
+    // We have interesting headers, launching tail calls to handle them.
+    if (bpf_map_update_elem(&tls_http2_iterations, &info_copy, iteration_value, BPF_NOEXIST) >= 0) {
+        // We managed to cache the iteration_value in the http2_iterations map.
+        bpf_tail_call_compat(ctx, &tls_process_progs, TLS_HTTP2_PARSER);
+    }
+
     return 0;
 }
 
 SEC("uprobe/http2_tls_frames_parser")
 int uprobe__http2_tls_frames_parser(struct __sk_buff *skb) {
+    log_debug("[grpcdebug] > frame parser");
+
     return 0;
 }
 
