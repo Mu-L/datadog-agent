@@ -214,6 +214,20 @@ int uprobe__http2_tls_frames_parser(struct __sk_buff *skb) {
 SEC("uprobe/http2_tls_termination")
 int uprobe__http2_tls_termination(struct pt_regs *ctx) {
     log_debug("[grpcdebug] tls termination");
+    const u32 zero = 0;
+
+    tls_dispatcher_arguments_t *info = bpf_map_lookup_elem(&tls_dispatcher_arguments, &zero);
+    if (info == NULL) {
+        log_debug("[http2_tls_termination] could not get tls info from map");
+        return 0;
+    }
+
+    // Deleting the entry for the original tuple.
+    bpf_map_delete_elem(&http2_dynamic_counter_table, &info->tup);
+    // In case of local host, the protocol will be deleted for both (client->server) and (server->client),
+    // so we won't reach for that path again in the code, so we're deleting the opposite side as well.
+    flip_tuple(&info->tup);
+    bpf_map_delete_elem(&http2_dynamic_counter_table, &info->tup);
 
     return 0;
 }
