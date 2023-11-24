@@ -95,6 +95,7 @@ static __always_inline void tls_process(struct pt_regs *ctx, conn_tuple_t *t, vo
         .tags = tags,
         .buf = buffer_ptr,
         .len = len,
+        .off = 0,
     };
 
     bpf_tail_call_compat(ctx, &tls_process_progs, prog);

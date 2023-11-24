@@ -28,6 +28,7 @@ typedef struct {
     __u64 tags;
     char *buf;
     size_t len;
+    size_t off;
 } tls_dispatcher_arguments_t;
 
 #endif
