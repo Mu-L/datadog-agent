@@ -6,13 +6,12 @@
 package packagesigningimpl
 
 import (
+	"bufio"
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
-	"time"
-
-	pgp "github.com/ProtonMail/go-crypto/openpgp"
 )
 
 // SigningKey represents relevant fields for a package signature key
@@ -61,24 +60,54 @@ func decryptGPGFile(allKeys map[SigningKey]struct{}, gpgFile string, keyType str
 }
 
 // decryptGPGReader extract keys from a reader, useful for rpm extraction
+// func decryptGPGReader(allKeys map[SigningKey]struct{}, reader io.Reader, keyType string) {
+// 	keyList, err := pgp.ReadArmoredKeyRing(reader)
+// 	if err != nil {
+// 		return
+// 	}
+// 	for _, key := range keyList {
+// 		fingerprint := key.PrimaryKey.KeyIdString()
+// 		expDate := noExpDate
+// 		i := key.PrimaryIdentity()
+// 		keyLifetime := i.SelfSignature.KeyLifetimeSecs
+// 		if keyLifetime != nil {
+// 			expiry := key.PrimaryKey.CreationTime.Add(time.Duration(*i.SelfSignature.KeyLifetimeSecs) * time.Second)
+// 			expDate = expiry.Format(formatDate)
+// 		}
+// 		allKeys[SigningKey{
+// 			Fingerprint:    fingerprint,
+// 			ExpirationDate: expDate,
+// 			KeyType:        keyType,
+// 		}] = struct{}{}
+// 	}
+// }
+
 func decryptGPGReader(allKeys map[SigningKey]struct{}, reader io.Reader, keyType string) {
-	keyList, err := pgp.ReadArmoredKeyRing(reader)
-	if err != nil {
-		return
-	}
-	for _, key := range keyList {
-		fingerprint := key.PrimaryKey.KeyIdString()
-		expDate := noExpDate
-		i := key.PrimaryIdentity()
-		keyLifetime := i.SelfSignature.KeyLifetimeSecs
-		if keyLifetime != nil {
-			expiry := key.PrimaryKey.CreationTime.Add(time.Duration(*i.SelfSignature.KeyLifetimeSecs) * time.Second)
-			expDate = expiry.Format(formatDate)
+	// Create regular expressions for date and key ID extraction
+	dateRegex := regexp.MustCompile(`[0-9]{4}-[0-9]{2}-[0-9]{2}`)
+	keyIDRegex := regexp.MustCompile(`[A-Z0-9]+`)
+
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "pub") {
+			expDate := "9999-12-31"
+			dateList := dateRegex.FindAllString(line, -1)
+			if len(dateList) > 1 {
+				expDate = dateList[1]
+			}
+			// Read the next line to extract the key ID
+			if scanner.Scan() {
+				keyID := keyIDRegex.FindString(scanner.Text())
+				allKeys[SigningKey{
+					Fingerprint:    keyID,
+					ExpirationDate: expDate,
+					KeyType:        keyType,
+				}] = struct{}{}
+			}
 		}
-		allKeys[SigningKey{
-			Fingerprint:    fingerprint,
-			ExpirationDate: expDate,
-			KeyType:        keyType,
-		}] = struct{}{}
+	}
+	if err := scanner.Err(); err != nil {
+		return
 	}
 }
