@@ -32,6 +32,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/network/config"
 	netebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
+	"github.com/DataDog/datadog-agent/pkg/network/ports"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols"
 	nettelemetry "github.com/DataDog/datadog-agent/pkg/network/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/network/tracer/connection/fentry"
@@ -186,7 +187,7 @@ func NewTracer(config *config.Config, bpfTelemetry *nettelemetry.EBPFTelemetry) 
 		},
 	}
 
-	begin, end := network.EphemeralRange()
+	begin, end := ports.EphemeralRange()
 	mgrOptions.ConstantEditors = append(mgrOptions.ConstantEditors,
 		manager.ConstantEditor{Name: "ephemeral_range_begin", Value: uint64(begin)},
 		manager.ConstantEditor{Name: "ephemeral_range_end", Value: uint64(end)})
@@ -553,7 +554,7 @@ func (t *tracer) Type() TracerType {
 }
 
 func initializePortBindingMaps(config *config.Config, m *manager.Manager) error {
-	tcpPorts, err := network.ReadInitialState(config.ProcRoot, network.TCP, config.CollectTCPv6Conns)
+	tcpPorts, err := ports.ReadInitialState(config.ProcRoot, ports.TCP, config.CollectTCPv6Conns)
 	if err != nil {
 		return fmt.Errorf("failed to read initial TCP pid->port mapping: %s", err)
 	}
@@ -571,7 +572,7 @@ func initializePortBindingMaps(config *config.Config, m *manager.Manager) error 
 		}
 	}
 
-	udpPorts, err := network.ReadInitialState(config.ProcRoot, network.UDP, config.CollectUDPv6Conns)
+	udpPorts, err := ports.ReadInitialState(config.ProcRoot, ports.UDP, config.CollectUDPv6Conns)
 	if err != nil {
 		return fmt.Errorf("failed to read initial UDP pid->port mapping: %s", err)
 	}
@@ -583,7 +584,7 @@ func initializePortBindingMaps(config *config.Config, m *manager.Manager) error 
 	for p, count := range udpPorts {
 		// ignore ephemeral port binds as they are more likely to be from
 		// clients calling bind with port 0
-		if network.IsPortInEphemeralRange(network.AFINET, network.UDP, p.Port) == network.EphemeralTrue {
+		if ports.IsPortInEphemeralRange(ports.AFINET, ports.UDP, p.Port) == ports.EphemeralTrue {
 			log.Debugf("ignoring initial ephemeral UDP port bind to %d", p)
 			continue
 		}
@@ -669,7 +670,7 @@ func populateConnStats(stats *network.ConnectionStats, t *netebpf.ConnTuple, s *
 		stats.Family = network.AFINET6
 	}
 
-	stats.SPortIsEphemeral = network.IsPortInEphemeralRange(stats.Family, stats.Type, t.Sport)
+	stats.SPortIsEphemeral = network.GetPortType(stats, t.Sport)
 
 	switch s.ConnectionDirection() {
 	case netebpf.Incoming:

@@ -15,6 +15,7 @@ import (
 	"github.com/cihub/seelog"
 
 	"github.com/DataDog/datadog-agent/pkg/network/dns"
+	"github.com/DataDog/datadog-agent/pkg/network/ports"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/http"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/kafka"
@@ -1056,10 +1057,10 @@ func fixIncomingConnectionDirection(c *ConnectionStats) {
 		return
 	}
 
-	sourceEphemeral := IsPortInEphemeralRange(c.Family, c.Type, c.SPort) == EphemeralTrue
+	sourceEphemeral := GetPortType(c, c.SPort) == ports.EphemeralTrue
 	var destNotEphemeral bool
 	if c.IntraHost {
-		destNotEphemeral = IsPortInEphemeralRange(c.Family, c.Type, c.DPort) != EphemeralTrue
+		destNotEphemeral = GetPortType(c, c.DPort) != ports.EphemeralTrue
 	} else {
 		// use a much more restrictive range
 		// for non-ephemeral ports if the
@@ -1085,8 +1086,8 @@ func fixOutgoingConnectionDirection(c *ConnectionStats) {
 		return
 	}
 
-	sourceNotEphemeral := IsPortInEphemeralRange(c.Family, c.Type, c.SPort) != EphemeralTrue
-	destEphemeral := IsPortInEphemeralRange(c.Family, c.Type, c.DPort) == EphemeralTrue
+	sourceNotEphemeral := GetPortType(c, c.SPort) != ports.EphemeralTrue
+	destEphemeral := GetPortType(c, c.DPort) == ports.EphemeralTrue
 
 	if sourceNotEphemeral && destEphemeral {
 		c.Direction = INCOMING

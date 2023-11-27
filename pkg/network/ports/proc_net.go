@@ -5,7 +5,7 @@
 
 //go:build linux
 
-package network
+package ports
 
 import (
 	"bufio"

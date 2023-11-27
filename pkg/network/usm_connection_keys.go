@@ -8,6 +8,7 @@
 package network
 
 import (
+	"github.com/DataDog/datadog-agent/pkg/network/ports"
 	"github.com/DataDog/datadog-agent/pkg/network/types"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
 )
@@ -69,7 +70,7 @@ func WithKey(connectionStats ConnectionStats, f func(key types.ConnectionKey) (s
 	// USM data is generally indexed as (client, server), so we do a
 	// *best-effort* to determine the key tuple most likely to be the one
 	// correct and minimize the numer of `f` calls
-	if IsPortInEphemeralRange(connectionStats.Family, connectionStats.Type, clientPort) != EphemeralTrue {
+	if GetPortType(&connectionStats, clientPort) != ports.EphemeralTrue {
 		// Flip IPs and ports
 		clientIP, clientPort, serverIP, serverPort = serverIP, serverPort, clientIP, clientPort
 		clientIPNAT, clientPortNAT, serverIPNAT, serverPortNAT = serverIPNAT, serverPortNAT, clientIPNAT, clientPortNAT

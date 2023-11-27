@@ -5,7 +5,7 @@
 
 //go:build linux_bpf
 
-package network
+package ports
 
 import (
 	"fmt"

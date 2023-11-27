@@ -15,6 +15,7 @@ import (
 
 	model "github.com/DataDog/agent-payload/v5/process"
 	"github.com/DataDog/datadog-agent/pkg/network"
+	"github.com/DataDog/datadog-agent/pkg/network/ports"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
 )
 
@@ -201,11 +202,11 @@ func formatDirection(d network.ConnectionDirection) model.ConnectionDirection {
 	}
 }
 
-func formatEphemeralType(e network.EphemeralPortType) model.EphemeralPortState {
+func formatEphemeralType(e ports.EphemeralPortType) model.EphemeralPortState {
 	switch e {
-	case network.EphemeralTrue:
+	case ports.EphemeralTrue:
 		return model.EphemeralPortState_ephemeralTrue
-	case network.EphemeralFalse:
+	case ports.EphemeralFalse:
 		return model.EphemeralPortState_ephemeralFalse
 	default:
 		return model.EphemeralPortState_ephemeralUnspecified

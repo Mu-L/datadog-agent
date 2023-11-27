@@ -5,7 +5,7 @@
 
 //go:build !linux && !windows
 
-package network
+package ports
 
 // IsPortInEphemeralRange returns whether the port is ephemeral based on the OS-specific configuration.
 func IsPortInEphemeralRange(_ ConnectionFamily, _ ConnectionType, _ uint16) EphemeralPortType {

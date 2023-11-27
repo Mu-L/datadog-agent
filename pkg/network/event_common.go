@@ -14,6 +14,7 @@ import (
 	"github.com/dustin/go-humanize"
 
 	"github.com/DataDog/datadog-agent/pkg/network/dns"
+	"github.com/DataDog/datadog-agent/pkg/network/ports"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/http"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/kafka"
@@ -90,31 +91,6 @@ func (d ConnectionDirection) String() string {
 		return "none"
 	default:
 		return "incoming"
-	}
-}
-
-// EphemeralPortType will be either EphemeralUnknown, EphemeralTrue, EphemeralFalse
-type EphemeralPortType uint8
-
-const (
-	// EphemeralUnknown indicates inability to determine whether the port is in the ephemeral range or not
-	EphemeralUnknown EphemeralPortType = 0
-
-	// EphemeralTrue means the port has been detected to be in the configured ephemeral range
-	EphemeralTrue EphemeralPortType = 1
-
-	// EphemeralFalse means the port has been detected to not be in the configured ephemeral range
-	EphemeralFalse EphemeralPortType = 2
-)
-
-func (e EphemeralPortType) String() string {
-	switch e {
-	case EphemeralTrue:
-		return "ephemeral"
-	case EphemeralFalse:
-		return "not ephemeral"
-	default:
-		return "unspecified"
 	}
 }
 
@@ -268,7 +244,7 @@ type ConnectionStats struct {
 	Type             ConnectionType
 	Family           ConnectionFamily
 	Direction        ConnectionDirection
-	SPortIsEphemeral EphemeralPortType
+	SPortIsEphemeral ports.EphemeralPortType
 	StaticTags       uint64
 	Tags             map[string]struct{}
 
@@ -504,4 +480,29 @@ func (s StatCounters) Max(other StatCounters) StatCounters {
 // its an underflow
 func isUnderflow(previous, current, maxChange uint64) bool {
 	return current < previous && (current-previous) > maxChange
+}
+
+// GetPortType determines the type of a port for a given ConnectionStats
+// This function is just a convenience wrapper around `ports.IsPortInEphemeralRange`
+func GetPortType(stats *ConnectionStats, port uint16) ports.EphemeralPortType {
+	var (
+		connectionFamily ports.ConnectionFamily
+		connectionType   ports.ConnectionType
+	)
+
+	switch stats.Family {
+	case AFINET:
+		connectionFamily = ports.AFINET
+	case AFINET6:
+		connectionFamily = ports.AFINET6
+	}
+
+	switch stats.Type {
+	case TCP:
+		connectionType = ports.TCP
+	case UDP:
+		connectionType = ports.UDP
+	}
+
+	return ports.IsPortInEphemeralRange(connectionFamily, connectionType, port)
 }
