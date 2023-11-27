@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/network/config"
+	"github.com/DataDog/datadog-agent/pkg/network/ports"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -121,11 +122,7 @@ func (h *StatKeeper) add(tx Transaction) {
 	}
 
 	key := NewKeyWithConnection(tx.ConnTuple(), path, fullPath, tx.Method())
-
-	// If connection rollup is enabled we set the client (ephemeral) port to 0
-	if h.cfg.EnableUSMConnectionRollup {
-		key.SrcPort = 0
-	}
+	h.rollupEphemeralPort(&key)
 
 	stats, ok := h.stats[key]
 	if !ok {
@@ -175,4 +172,25 @@ func (h *StatKeeper) processHTTPPath(tx Transaction, path []byte) ([]byte, bool)
 		return nil, true
 	}
 	return path, false
+}
+
+func (h *StatKeeper) rollupEphemeralPort(key *Key) {
+	if !h.cfg.EnableUSMConnectionRollup {
+		return
+	}
+
+	srcEphemeral := ports.IsPortInEphemeralRange(
+		ports.AFINET, // ignored by the linux-specific implementation
+		ports.TCP,
+		key.SrcPort,
+	)
+	dstEphemeral := ports.IsPortInEphemeralRange(
+		ports.AFINET,
+		ports.TCP,
+		key.DstPort,
+	)
+
+	if srcEphemeral == ports.EphemeralTrue && dstEphemeral == ports.EphemeralFalse {
+		key.SrcPort = 0
+	}
 }
