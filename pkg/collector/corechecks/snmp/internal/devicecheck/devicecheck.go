@@ -58,7 +58,7 @@ type DeviceCheck struct {
 	savedDynamicTags        []string
 	nextAutodetectMetrics   time.Time
 	diagnoses               *diagnoses.Diagnoses
-	interfaceBandwidthState *report.InterfaceBandwidthState
+	interfaceBandwidthState report.InterfaceBandwidthState
 }
 
 // NewDeviceCheck returns a new DeviceCheck
@@ -76,7 +76,7 @@ func NewDeviceCheck(config *checkconfig.CheckConfig, ipAddress string, sessionFa
 		sessionCloseErrorCount:  atomic.NewUint64(0),
 		nextAutodetectMetrics:   timeNow(),
 		diagnoses:               diagnoses.NewDeviceDiagnoses(newConfig.DeviceID),
-		interfaceBandwidthState: report.NewInterfaceBandwidthState(),
+		interfaceBandwidthState: report.MakeInterfaceBandwidthState(),
 	}, nil
 }
 
@@ -86,12 +86,12 @@ func (d *DeviceCheck) SetSender(sender *report.MetricSender) {
 }
 
 // SetInterfaceBandwidthState sets the interface bandwidth state
-func (d *DeviceCheck) SetInterfaceBandwidthState(state *report.InterfaceBandwidthState) {
+func (d *DeviceCheck) SetInterfaceBandwidthState(state report.InterfaceBandwidthState) {
 	d.interfaceBandwidthState = state
 }
 
 // GetInterfaceBandwidthState returns interface bandwidth state
-func (d *DeviceCheck) GetInterfaceBandwidthState() *report.InterfaceBandwidthState {
+func (d *DeviceCheck) GetInterfaceBandwidthState() report.InterfaceBandwidthState {
 	return d.interfaceBandwidthState
 }
 
