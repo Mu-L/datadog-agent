@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build linux || windows
+//go:build linux || windows || darwin
 
 package modules
 
@@ -12,7 +12,6 @@ import (
 	"github.com/DataDog/datadog-agent/cmd/system-probe/config"
 	"github.com/DataDog/datadog-agent/pkg/eventmonitor"
 	emconfig "github.com/DataDog/datadog-agent/pkg/eventmonitor/config"
-	"github.com/DataDog/datadog-agent/pkg/network/events"
 	procconsumer "github.com/DataDog/datadog-agent/pkg/process/events/consumer"
 	secconfig "github.com/DataDog/datadog-agent/pkg/security/config"
 	secmodule "github.com/DataDog/datadog-agent/pkg/security/module"
@@ -55,15 +54,6 @@ var EventMonitor = module.Factory{
 			}
 			evm.RegisterEventConsumer(cws)
 			log.Info("event monitoring cws consumer initialized")
-		}
-
-		if emconfig.NetworkConsumerEnabled {
-			network, err := events.NewNetworkConsumer(evm)
-			if err != nil {
-				return nil, err
-			}
-			evm.RegisterEventConsumer(network)
-			log.Info("event monitoring network consumer initialized")
 		}
 
 		if emconfig.ProcessConsumerEnabled {
