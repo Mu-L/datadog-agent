@@ -43,7 +43,14 @@ type FileEvent struct {
 type Process struct {
 	PIDContext
 
+	UID   uint32 `field:"uid"`   // SECLDoc[uid] Definition:`UID of the process`
+	GID   uint32 `field:"gid"`   // SECLDoc[gid] Definition:`GID of the process`
+	User  string `field:"user"`  // SECLDoc[user] Definition:`User of the process` Example:`process.user == "root"` Description:`Constrain an event to be triggered by a process running as the root user.`
+	Group string `field:"group"` // SECLDoc[group] Definition:`Group of the process`
+
 	FileEvent FileEvent `field:"file"`
+
+	ContainerID string `field:"container.id"` // SECLDoc[container.id] Definition:`Container ID`
 
 	ExitTime time.Time `field:"exit_time,opts:getters_only" json:"-"`
 	ExecTime time.Time `field:"exec_time,opts:getters_only" json:"-"`
@@ -54,6 +61,8 @@ type Process struct {
 
 	ArgsEntry *ArgsEntry `field:"-" json:"-"`
 	EnvsEntry *EnvsEntry `field:"-" json:"-"`
+
+	Argv []string `field:"argv,handler:ResolveProcessArgv,weight:500; args_flags,handler:ResolveProcessArgsFlags,opts:helper; args_options,handler:ResolveProcessArgsOptions,opts:helper"` // SECLDoc[argv] Definition:`Arguments of the process (as an array, excluding argv0)` Example:`exec.argv in ["127.0.0.1"]` Description:`Matches any process that has this IP address as one of its arguments.` SECLDoc[args_flags] Definition:`Flags in the process arguments` Example:`exec.args_flags in ["s"] && exec.args_flags in ["V"]` Description:`Matches any process with both "-s" and "-V" flags in its arguments. Also matches "-sV".` SECLDoc[args_options] Definition:`Argument of the process as options` Example:`exec.args_options in ["p=0-1024"]` Description:`Matches any process that has either "-p 0-1024" or "--p=0-1024" in its arguments.`
 
 	CmdLine         string `field:"cmdline,handler:ResolveProcessCmdLine,weight:200"` // SECLDoc[cmdline] Definition:`Command line of the process` Example:`exec.cmdline == "-sV -p 22,53,110,143,4564 198.116.0-255.1-127"` Description:`Matches any process with these exact arguments.` Example:`exec.cmdline =~ "* -F * http*"` Description:`Matches any process that has the "-F" argument anywhere before an argument starting with "http".`
 	CmdLineScrubbed string `field:"cmdline_scrubbed,handler:ResolveProcessCmdLineScrubbed,weight:500,opts:getters_only"`

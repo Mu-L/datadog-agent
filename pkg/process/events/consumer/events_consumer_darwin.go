@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build unix
+//go:build darwin
 
 package consumer
 
@@ -14,9 +14,6 @@ import (
 
 // Copy copies the necessary fields from the event received from the event monitor
 func (p *ProcessConsumer) Copy(event *smodel.Event) any {
-	cmdline := []string{event.GetProcessArgv0()}
-	cmdline = append(cmdline, event.GetProcessArgv()...)
-
 	return &model.ProcessEvent{
 		EventType:      model.NewEventType(event.GetEventType().String()),
 		CollectionTime: event.GetTimestamp(),
@@ -28,8 +25,7 @@ func (p *ProcessConsumer) Copy(event *smodel.Event) any {
 		Username:       event.GetProcessUser(),
 		Group:          event.GetProcessGroup(),
 		Exe:            event.GetExecFilePath(),
-		Cmdline:        cmdline,
-		ForkTime:       event.GetProcessForkTime(),
+		Cmdline:        event.GetProcessArgv(),
 		ExecTime:       event.GetProcessExecTime(),
 		ExitTime:       event.GetProcessExitTime(),
 		ExitCode:       event.GetExitCode(),
