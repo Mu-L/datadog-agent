@@ -44,6 +44,7 @@ EMBEDDED_SHARE_DIR = os.path.join("/opt", "datadog-agent", "embedded", "share", 
 EMBEDDED_SHARE_JAVA_DIR = os.path.join("/opt", "datadog-agent", "embedded", "share", "system-probe", "java")
 
 is_windows = sys.platform == "win32"
+is_macos = sys.platform == "darwin"
 
 arch_mapping = {
     "amd64": "x64",
@@ -488,6 +489,7 @@ def build(
     python_runtimes='3',
     go_mod="mod",
     windows=is_windows,
+    macos=is_macos,
     arch=CURRENT_ARCH,
     bundle_ebpf=False,
     kernel_release=None,
@@ -496,19 +498,20 @@ def build(
     strip_binary=False,
     with_unit_test=False,
 ):
-    """
-    Build the system-probe
-    """
-    build_object_files(
-        ctx,
-        windows=windows,
-        major_version=major_version,
-        arch=arch,
-        kernel_release=kernel_release,
-        debug=debug,
-        strip_object_files=strip_object_files,
-        with_unit_test=with_unit_test,
-    )
+    if not is_macos:
+        """
+        Build the system-probe
+        """
+        build_object_files(
+            ctx,
+            windows=windows,
+            major_version=major_version,
+            arch=arch,
+            kernel_release=kernel_release,
+            debug=debug,
+            strip_object_files=strip_object_files,
+            with_unit_test=with_unit_test,
+        )
 
     build_sysprobe_binary(
         ctx,
