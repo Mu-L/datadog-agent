@@ -9,7 +9,6 @@ package modules
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -20,7 +19,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/compliance/dbconfig"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,15 +26,15 @@ func TestComplianceModuleNoProcess(t *testing.T) {
 	{
 		url := "/dbconfig"
 		statusCode, _, respBody := doDBConfigRequest(t, url)
+		require.Contains(t, string(respBody), "pid query parameter is not an integer")
 		require.Equal(t, http.StatusBadRequest, statusCode)
-		require.Len(t, respBody, 0)
 	}
 
 	{
 		url := "/dbconfig?pid=0"
 		statusCode, _, respBody := doDBConfigRequest(t, url)
+		require.Contains(t, "resource not found for pid=0", string(respBody))
 		require.Equal(t, http.StatusNotFound, statusCode)
-		require.Len(t, respBody, 0)
 	}
 }
 
@@ -47,15 +45,9 @@ func TestComplianceCheckModuleWithProcess(t *testing.T) {
 
 	pid := launchFakeProcess(ctx, t, tmp, "postgres")
 	url := fmt.Sprintf("/dbconfig?pid=%d", pid)
-	statusCode, headers, respBody := doDBConfigRequest(t, url)
-	require.Equal(t, http.StatusOK, statusCode)
-	require.Equal(t, "application/json", headers.Get("Content-Type"))
-
-	var resource *dbconfig.DBResource
-	if err := json.Unmarshal(respBody, &resource); err != nil {
-		t.Fatal(err)
-	}
-	require.Nil(t, resource)
+	statusCode, _, respBody := doDBConfigRequest(t, url)
+	require.Equal(t, fmt.Sprintf("resource not found for pid=%d", pid), string(respBody))
+	require.Equal(t, http.StatusNotFound, statusCode)
 }
 
 func launchFakeProcess(ctx context.Context, t *testing.T, tmp, procname string) int {
@@ -68,9 +60,6 @@ func launchFakeProcess(ctx context.Context, t *testing.T, tmp, procname string) 
 	fakePgPath := filepath.Join(tmp, procname)
 	if err := os.Symlink(sleepPath, fakePgPath); err != nil {
 		t.Fatalf("could not create fake process symlink: %v", err)
-	}
-	if err := os.Chmod(fakePgPath, 0700); err != nil {
-		t.Fatalf("could not chmod fake process symlink: %v", err)
 	}
 
 	cmd := exec.CommandContext(ctx, fakePgPath, "5")
