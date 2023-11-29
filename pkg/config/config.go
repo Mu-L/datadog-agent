@@ -1868,6 +1868,11 @@ func GetIPCAddress() (string, error) {
 	return pkgconfigenv.GetIPCAddress(Datadog)
 }
 
+// GetIPCPort returns the IPC port
+func GetIPCPort() string {
+	return Datadog.GetString("cmd_port")
+}
+
 // pathExists returns true if the given path exists
 func pathExists(path string) bool {
 	_, err := os.Stat(path)

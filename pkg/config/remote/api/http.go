@@ -16,8 +16,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/DataDog/datadog-agent/pkg/config"
-	"github.com/DataDog/datadog-agent/pkg/config/utils"
+	"github.com/DataDog/datadog-agent/pkg/config/model"
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	httputils "github.com/DataDog/datadog-agent/pkg/util/http"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -62,7 +61,7 @@ type HTTPClient struct {
 }
 
 // NewHTTPClient returns a new HTTP configuration client
-func NewHTTPClient(auth Auth) (*HTTPClient, error) {
+func NewHTTPClient(auth Auth, cfg model.Reader, baseRawURL string) (*HTTPClient, error) {
 	header := http.Header{
 		"Content-Type": []string{"application/x-protobuf"},
 		"DD-Api-Key":   []string{auth.ApiKey},
@@ -70,22 +69,21 @@ func NewHTTPClient(auth Auth) (*HTTPClient, error) {
 	if auth.UseAppKey {
 		header["DD-Application-Key"] = []string{auth.AppKey}
 	}
-	transport := httputils.CreateHTTPTransport(config.Datadog)
+	transport := httputils.CreateHTTPTransport(cfg)
 	// Set the keep-alive timeout to 30s instead of the default 90s, so the http RC client is not closed by the backend
 	transport.IdleConnTimeout = 30 * time.Second
 
 	httpClient := &http.Client{
 		Transport: transport,
 	}
-	baseRawURL := utils.GetMainEndpoint(config.Datadog, "https://config.", "remote_configuration.rc_dd_url")
 	baseURL, err := url.Parse(baseRawURL)
 	if err != nil {
 		return nil, err
 	}
-	if baseURL.Scheme != "https" && !config.Datadog.GetBool("remote_configuration.no_tls") {
+	if baseURL.Scheme != "https" && !cfg.GetBool("remote_configuration.no_tls") {
 		return nil, fmt.Errorf("Remote Configuration URL %s is invalid as TLS is required by default. While it is not advised, the `remote_configuration.no_tls` config option can be set to `true` to disable this protection.", baseRawURL)
 	}
-	if transport.TLSClientConfig.InsecureSkipVerify && !config.Datadog.GetBool("remote_configuration.no_tls_validation") {
+	if transport.TLSClientConfig.InsecureSkipVerify && !cfg.GetBool("remote_configuration.no_tls_validation") {
 		return nil, fmt.Errorf("Remote Configuration does not allow skipping TLS validation by default (currently skipped because `skip_ssl_validation` is set to true). While it is not advised, the `remote_configuration.no_tls_validation` config option can be set to `true` to disable this protection.")
 	}
 	return &HTTPClient{

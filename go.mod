@@ -32,6 +32,7 @@ replace (
 	github.com/DataDog/datadog-agent/pkg/config/env => ./pkg/config/env
 	github.com/DataDog/datadog-agent/pkg/config/logs => ./pkg/config/logs
 	github.com/DataDog/datadog-agent/pkg/config/model => ./pkg/config/model/
+	github.com/DataDog/datadog-agent/pkg/config/remote => ./pkg/config/remote/
 	github.com/DataDog/datadog-agent/pkg/errors => ./pkg/errors
 	github.com/DataDog/datadog-agent/pkg/gohai => ./pkg/gohai
 	github.com/DataDog/datadog-agent/pkg/metrics => ./pkg/metrics/
@@ -89,7 +90,7 @@ require (
 	// do not update datadog-operator to 1.2.1 because the indirect dependency github.com/DataDog/datadog-api-client-go/v2 v2.15.0 is trigger a huge Go heap memory increase.
 	github.com/DataDog/datadog-operator v1.1.0
 	github.com/DataDog/ebpf-manager v0.3.7
-	github.com/DataDog/go-tuf v1.0.2-0.5.2
+	github.com/DataDog/go-tuf v1.0.2-0.5.2 // indirect
 	github.com/DataDog/gopsutil v1.2.2
 	github.com/DataDog/nikos v1.12.1
 	github.com/DataDog/opentelemetry-mapping-go/pkg/otlp/attributes v0.8.1
@@ -100,7 +101,7 @@ require (
 	github.com/DataDog/watermarkpodautoscaler v0.6.1
 	github.com/DataDog/zstd v1.5.5
 	github.com/DataDog/zstd_0 v0.0.0-20210310093942-586c1286621f // indirect
-	github.com/Masterminds/semver v1.5.0
+	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/Masterminds/sprig/v3 v3.2.3 // indirect
 	github.com/Microsoft/go-winio v0.6.1
@@ -195,7 +196,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/samber/lo v1.38.1
 	github.com/samuel/go-zookeeper v0.0.0-20190923202752-2cc03de413da
-	github.com/secure-systems-lab/go-securesystemslib v0.7.0
+	github.com/secure-systems-lab/go-securesystemslib v0.7.0 // indirect
 	github.com/shirou/gopsutil/v3 v3.23.10
 	github.com/shirou/w32 v0.0.0-20160930032740-bb4de0191aa4
 	github.com/sirupsen/logrus v1.9.3
@@ -594,7 +595,8 @@ require (
 	github.com/DataDog/datadog-agent/pkg/collector/check/defaults v0.50.0-rc.4
 	github.com/DataDog/datadog-agent/pkg/config/env v0.50.0-rc.4
 	github.com/DataDog/datadog-agent/pkg/config/logs v0.50.0-rc.4
-	github.com/DataDog/datadog-agent/pkg/config/model v0.50.0-rc.4
+	github.com/DataDog/datadog-agent/pkg/config/model v0.51.0-devel
+	github.com/DataDog/datadog-agent/pkg/config/remote v0.0.0-00010101000000-000000000000
 	github.com/DataDog/datadog-agent/pkg/errors v0.50.0-rc.4
 	github.com/DataDog/datadog-agent/pkg/metrics v0.50.0-rc.4
 	github.com/DataDog/datadog-agent/pkg/networkdevice/profile v0.50.0-rc.4
@@ -604,14 +606,15 @@ require (
 	github.com/DataDog/datadog-agent/pkg/status/health v0.50.0-rc.4
 	github.com/DataDog/datadog-agent/pkg/tagset v0.50.0-rc.4
 	github.com/DataDog/datadog-agent/pkg/telemetry v0.50.0-rc.4
-	github.com/DataDog/datadog-agent/pkg/util/backoff v0.50.0-rc.4
+	github.com/DataDog/datadog-agent/pkg/util/backoff v0.51.0-devel
 	github.com/DataDog/datadog-agent/pkg/util/cache v0.50.0-rc.4
 	github.com/DataDog/datadog-agent/pkg/util/common v0.50.0-rc.4
 	github.com/DataDog/datadog-agent/pkg/util/compression v0.50.0-rc.4
 	github.com/DataDog/datadog-agent/pkg/util/executable v0.50.0-rc.4
 	github.com/DataDog/datadog-agent/pkg/util/filesystem v0.50.0-rc.4
 	github.com/DataDog/datadog-agent/pkg/util/fxutil v0.50.0-rc.4
-	github.com/DataDog/datadog-agent/pkg/util/http v0.50.0-rc.4
+	github.com/DataDog/datadog-agent/pkg/util/grpc v0.50.0-rc.4
+	github.com/DataDog/datadog-agent/pkg/util/http v0.51.0-devel
 	github.com/DataDog/datadog-agent/pkg/util/json v0.50.0-rc.4
 	github.com/DataDog/datadog-agent/pkg/util/optional v0.50.0-rc.4
 	github.com/DataDog/datadog-agent/pkg/util/sort v0.50.0-rc.4
