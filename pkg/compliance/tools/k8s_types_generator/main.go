@@ -42,23 +42,27 @@ var (
 
 	// https://kubernetes.io/releases/
 	k8sVersions = []string{
+		"v1.28.4",
 		"v1.27.3",
 		"v1.26.6",
 		"v1.25.11",
 		"v1.24.15",
-		"v1.23.17",
 	}
 
 	// https://github.com/kubernetes/kubernetes/blob/c3e7eca7fd38454200819b60e58144d5727f1bbc/cluster/images/etcd/Makefile#L18
 	// "v3.0.17", "v3.1.20" removed because they do not have ARM64 tarballs
 	etcdVersions = []string{
-		"v3.5.7",
-		"v3.4.18",
+		"v3.5.10",
+		"v3.4.28",
 		"v3.3.17",
 		"v3.2.32",
 	}
 
 	knownFlags = []string{
+		// Make sure "--config" parsing is first has it implements the precedence rules
+		// between configuration and CLI args
+		"--config",
+
 		"--address",
 		"--admission-control-config-file",
 		"--allow-privileged",
@@ -78,7 +82,6 @@ var (
 		"--client-cert-auth",
 		"--cluster-signing-cert-file",
 		"--cluster-signing-key-file",
-		"--config",
 		"--data-dir",
 		"--disable-admission-plugins",
 		"--enable-admission-plugins",
@@ -136,6 +139,20 @@ var (
 		"--trusted-ca-file",
 		"--use-service-account-credentials",
 	}
+
+	// reference: https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/#kubelet-config-k8s-io-v1beta1-KubeletAuthentication
+	kubeletConfigAssoc = map[string]string{
+		"address":                           "address",
+		"anonymous-auth":                    "authentication",
+		"authorization-mode":                "authorization",
+		"event-burst":                       "eventBurst",
+		"event-qps":                         "eventRecordQPS",
+		"make-iptables-util-chains":         "makeIPTablesUtilChains",
+		"max-pods":                          "maxPods",
+		"pod-max-pids":                      "podPidsLimit",
+		"read-only-port":                    "readOnlyPort",
+		"streaming-connection-idle-timeout": "streamingConnectionIdleTimeout",
+	}
 )
 
 const preamble = `// Unless explicitly stated otherwise all files in this repository are licensed
@@ -144,7 +161,7 @@ const preamble = `// Unless explicitly stated otherwise all files in this reposi
 // Copyright 2016-present Datadog, Inc.
 
 // !!!
-// This is a generated file: regenerate with go run ./pkg/compliance/tools/k8s_types_generator.go
+// This is a generated file: regenerate with go run ./pkg/compliance/tools/k8s_types_generator/main.go
 // !!!
 //revive:disable
 package k8sconfig
@@ -200,7 +217,6 @@ func main() {
 		}
 		mergedKomp := unionKomponents(komponents...)
 		allKomponents = append(allKomponents, mergedKomp)
-		fmt.Println(printKomponentCode(mergedKomp))
 	}
 
 	{
@@ -211,9 +227,20 @@ func main() {
 		}
 		mergedKomp := unionKomponents(komponents...)
 		allKomponents = append(allKomponents, mergedKomp)
-		fmt.Println(printKomponentCode(mergedKomp))
 	}
 
+	checkForKnownFlags(allKomponents, knownFlags)
+	for _, komp := range allKomponents {
+		sort.Slice(komp.confs, func(i, j int) bool {
+			ii := slices.Index(knownFlags, "--"+komp.confs[i].flagName)
+			jj := slices.Index(knownFlags, "--"+komp.confs[j].flagName)
+			return ii < jj
+		})
+		fmt.Println(printKomponentCode(komp))
+	}
+}
+
+func checkForKnownFlags(allKomponents []*komponent, knownFlags []string) {
 	var knownFlagsClone []string
 	knownFlagsClone = append(knownFlagsClone, knownFlags...)
 	for _, komponent := range allKomponents {
@@ -354,8 +381,16 @@ func unionKomponents(ks ...*komponent) *komponent {
 				confs = append(confs, newConf)
 				conf = newConf
 			} else {
-				if conf.flagType != newConf.flagType {
+				if isKnownFlag(conf.flagName) && conf.flagType != newConf.flagType {
+					fmt.Fprintf(os.Stderr, "%s %s != %s\n", conf.flagName, conf.flagType, newConf.flagType)
 					panic("TODO: different types across versions")
+				}
+				if isKnownFlag(conf.flagName) && conf.flagDefault != newConf.flagDefault {
+					// special case for these flags for which the value itself is not important
+					if conf.flagName != "event-burst" && conf.flagName != "event-qps" {
+						fmt.Fprintf(os.Stderr, "%s %s != %s\n", conf.flagName, conf.flagDefault, newConf.flagDefault)
+						panic("TODO: different defaults across versions")
+					}
 				}
 			}
 			conf.versions = append(conf.versions, k.version)
@@ -436,7 +471,19 @@ func printKomponentCode(komp *komponent) string {
 		s += fmt.Sprintf("delete(flags, \"--%s\")\n", c.flagName)
 		s += printAssignment(c, "v")
 		if c.flagDefault != "" {
-			s += "\n} else {\n"
+			if komp.name == "kubelet" {
+				// Kubelet can be configured with both cli-args and a
+				// configuration file. We need to make sure the default value
+				// of a cli-args is filled only if the associated
+				// configuration in the config file is not setup.
+				kubeletConfigCursor, ok := kubeletConfigAssoc[c.flagName]
+				if !ok {
+					panic(fmt.Errorf("missing kubelet configuration associated path to flag %q", c.flagName))
+				}
+				s += fmt.Sprintf("\n} else if l.checkPrecedence(res.Config, %q) {\n", kubeletConfigCursor)
+			} else {
+				s += fmt.Sprintf("\n} else {\n")
+			}
 			s += printAssignment(c, fmt.Sprintf("%q", c.flagDefault))
 		}
 		s += "}\n"

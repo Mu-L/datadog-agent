@@ -28,7 +28,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const version = "202305"
+const version = "202312"
 
 const (
 	k8sManifestsDir   = "/etc/kubernetes/manifests"
@@ -192,6 +192,18 @@ func (l *loader) loadConfigFileMeta(name string) *K8sConfigFileMeta {
 		Mode:    uint32(info.Mode()),
 		Content: content,
 	}
+}
+
+func (l *loader) checkPrecedence(meta *K8sConfigFileMeta, path string) bool {
+	if meta == nil || meta.Content == nil {
+		return true
+	}
+	content, ok := meta.Content.(map[string]interface{})
+	if !ok {
+		return true
+	}
+	_, hasField := content[path]
+	return !hasField
 }
 
 func (l *loader) loadKubeletConfigFileMeta(name string) *K8sConfigFileMeta {
