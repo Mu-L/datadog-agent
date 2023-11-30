@@ -1,0 +1,90 @@
+name: "Serverless Vulnerability Scan"
+
+on:
+  pull_request:
+    paths:
+      - 'cmd/serverless/**'
+      - 'pkg/serverless/**'
+      - '.github/workflows/serverless-vuln-scan.yml'
+
+env:
+  VERSION: 1
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout datadog-agent repository
+        uses: actions/checkout@v3
+        with:
+          path: go/src/github.com/DataDog/datadog-agent
+          ref: lambda-extension-51
+
+      - name: Checkout datadog-agent base branch
+        run: |
+          cd go/src/github.com/DataDog/datadog-agent
+          git fetch origin $GITHUB_BASE_REF --depth 1
+          git checkout $GITHUB_BASE_REF
+
+      - name: Checkout the datadog-lambda-extension repository
+        uses: actions/checkout@v3
+        with:
+          repository: DataDog/datadog-lambda-extension
+          path: go/src/github.com/DataDog/datadog-lambda-extension
+          ref: eebb47c0deab94bfad83bd3fe2e9dc9ca91f2262
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build docker image
+        run: |
+          cd go/src/github.com/DataDog/datadog-lambda-extension
+          ./scripts/build_binary_and_layer_dockerized.sh
+
+      - name: Scan amd64 image
+        uses: anchore/scan-action@v3
+        with:
+          image: "datadog/build-lambda-extension-amd64:${{ env.VERSION }}"
+          fail-build: true
+          severity-cutoff: low
+          output-format: table
+
+      - name: Scan arm64 image
+        uses: anchore/scan-action@v3
+        with:
+          image: "datadog/build-lambda-extension-arm64:${{ env.VERSION }}"
+          fail-build: true
+          severity-cutoff: low
+          output-format: table
+
+      - name: Scan amd64 zip
+        uses: anchore/scan-action@v3
+        with:
+          path: go/src/github.com/DataDog/datadog-lambda-extension/datadog_extension-amd64.zip
+          fail-build: true
+          severity-cutoff: low
+          output-format: table
+
+      - name: Scan amd64 alpine zip
+        uses: anchore/scan-action@v3
+        with:
+          path: go/src/github.com/DataDog/datadog-lambda-extension/datadog_extension-amd64-alpine.zip
+          fail-build: true
+          severity-cutoff: low
+          output-format: table
+
+      - name: Scan arm64 zip
+        uses: anchore/scan-action@v3
+        with:
+          path: go/src/github.com/DataDog/datadog-lambda-extension/datadog_extension-arm64.zip
+          fail-build: true
+          severity-cutoff: low
+          output-format: table
+
+      - name: Scan arm64 alpine zip
+        uses: anchore/scan-action@v3
+        with:
+          path: go/src/github.com/DataDog/datadog-lambda-extension/datadog_extension-arm64-alpine.zip
+          fail-build: true
+          severity-cutoff: low
+          output-format: table
