@@ -7,6 +7,8 @@
 package probe
 
 import (
+	"errors"
+
 	"github.com/DataDog/datadog-agent/pkg/security/config"
 	"github.com/DataDog/datadog-agent/pkg/security/probe/kfilters"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
@@ -34,10 +36,12 @@ func (dp *DarwinProbe) Close() error     { return nil }
 func (dp *DarwinProbe) NewModel() *model.Model {
 	return NewDarwinModel()
 }
-func (dp *DarwinProbe) DumpDiscarders() (string, error) { return "", nil }
-func (dp *DarwinProbe) FlushDiscarders() error          { return nil }
+func (dp *DarwinProbe) DumpDiscarders() (string, error) {
+	return "", errors.New("not supported")
+}
+func (dp *DarwinProbe) FlushDiscarders() error { return nil }
 func (dp *DarwinProbe) ApplyRuleSet(_ *rules.RuleSet) (*kfilters.ApplyRuleSetReport, error) {
-	return nil, nil
+	return &kfilters.ApplyRuleSetReport{}, nil
 }
 func (dp *DarwinProbe) OnNewDiscarder(_ *rules.RuleSet, _ *model.Event, _ eval.Field, _ eval.EventType) {
 }
@@ -45,7 +49,9 @@ func (dp *DarwinProbe) HandleActions(_ *rules.Rule, _ eval.Event) {}
 func (dp *DarwinProbe) NewEvent() *model.Event {
 	return NewDarwinEvent(dp.fieldHandlers)
 }
-func (dp *DarwinProbe) GetFieldHandlers() model.FieldHandlers                { return nil }
+func (dp *DarwinProbe) GetFieldHandlers() model.FieldHandlers {
+	return dp.fieldHandlers
+}
 func (dp *DarwinProbe) DumpProcessCache(_ bool) (string, error)              { return "", nil }
 func (dp *DarwinProbe) AddDiscarderPushedCallback(_ DiscarderPushedCallback) {}
 func (dp *DarwinProbe) GetEventTags(_ string) []string                       { return nil }
