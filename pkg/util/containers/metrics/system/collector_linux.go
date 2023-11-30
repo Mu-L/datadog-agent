@@ -199,6 +199,11 @@ func (c *systemCollector) GetContainerIDForPID(pid int, cacheValidity time.Durat
 	return containerID, err
 }
 
+func (c *systemCollector) GetContainerIDForInode(inode int, cacheValidity time.Duration) (string, error) {
+	containerID, err := cgroups.IdentiferFromCgroupReferences(c.procPath, strconv.Itoa(inode), c.baseController, cgroups.ContainerFilter)
+	return containerID, err
+}
+
 func (c *systemCollector) GetSelfContainerID() (string, error) {
 	return getSelfContainerID(c.hostCgroupNamespace, c.reader.CgroupVersion(), c.baseController)
 }

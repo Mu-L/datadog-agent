@@ -8,11 +8,13 @@ package server
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"strconv"
 	"time"
 	"unsafe"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/util/cgroups"
 )
 
 type messageType int
@@ -238,7 +240,16 @@ func (p *parser) parseFloat64List(rawFloats []byte) ([]float64, error) {
 }
 
 // extractContainerID parses the value of the container ID field.
+// if the field starts with 'in-' it means that we want to resolve
+// the origin detection using Inodes.
 func (p *parser) extractContainerID(rawContainerIDField []byte) []byte {
+	if reflect.DeepEqual(containerIDFieldPrefix[:2], []byte("in-")) {
+		cgroupReader, err := cgroups.NewReader()
+		if err != nil {
+			return nil
+		}
+		systemCollector.GetContainerIDForInode(containerIDFieldPrefix[:2])
+	}
 	return rawContainerIDField[len(containerIDFieldPrefix):]
 }
 
