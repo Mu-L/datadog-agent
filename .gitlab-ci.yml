@@ -285,6 +285,9 @@ variables:
 .if_testing_cleanup: &if_testing_cleanup
   if: $TESTING_CLEANUP == "true"
 
+.if_e2e: &if_e2e
+  if: $RUN_E2E_TESTS == "true"
+
 .if_not_e2e: &if_not_e2e
   if: $RUN_KITCHEN_TESTS == "false"
 
