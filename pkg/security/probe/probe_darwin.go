@@ -15,20 +15,25 @@ import (
 )
 
 type DarwinProbe struct {
+	fieldHandlers *FieldHandlers
 }
 
 func NewDarwinProbe(p *Probe, config *config.Config, opts Opts) (*DarwinProbe, error) {
-	return &DarwinProbe{}, nil
+	return &DarwinProbe{
+		fieldHandlers: &FieldHandlers{},
+	}, nil
 }
 
-func (dp *DarwinProbe) Setup() error                    { return nil }
-func (dp *DarwinProbe) Init() error                     { return nil }
-func (dp *DarwinProbe) Start() error                    { return nil }
-func (dp *DarwinProbe) Stop()                           {}
-func (dp *DarwinProbe) SendStats() error                { return nil }
-func (dp *DarwinProbe) Snapshot() error                 { return nil }
-func (dp *DarwinProbe) Close() error                    { return nil }
-func (dp *DarwinProbe) NewModel() *model.Model          { return nil }
+func (dp *DarwinProbe) Setup() error     { return nil }
+func (dp *DarwinProbe) Init() error      { return nil }
+func (dp *DarwinProbe) Start() error     { return nil }
+func (dp *DarwinProbe) Stop()            {}
+func (dp *DarwinProbe) SendStats() error { return nil }
+func (dp *DarwinProbe) Snapshot() error  { return nil }
+func (dp *DarwinProbe) Close() error     { return nil }
+func (dp *DarwinProbe) NewModel() *model.Model {
+	return NewDarwinModel()
+}
 func (dp *DarwinProbe) DumpDiscarders() (string, error) { return "", nil }
 func (dp *DarwinProbe) FlushDiscarders() error          { return nil }
 func (dp *DarwinProbe) ApplyRuleSet(_ *rules.RuleSet) (*kfilters.ApplyRuleSetReport, error) {
@@ -38,7 +43,7 @@ func (dp *DarwinProbe) OnNewDiscarder(_ *rules.RuleSet, _ *model.Event, _ eval.F
 }
 func (dp *DarwinProbe) HandleActions(_ *rules.Rule, _ eval.Event) {}
 func (dp *DarwinProbe) NewEvent() *model.Event {
-	return nil
+	return NewDarwinEvent(dp.fieldHandlers)
 }
 func (dp *DarwinProbe) GetFieldHandlers() model.FieldHandlers                { return nil }
 func (dp *DarwinProbe) DumpProcessCache(_ bool) (string, error)              { return "", nil }
