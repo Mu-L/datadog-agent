@@ -64,7 +64,7 @@ func (dp *DarwinProbe) Start() error {
 	}()
 
 	go func() {
-		var value interface{}
+		var value ESEvent
 		for {
 			err := decoder.Decode(&value)
 			if err == io.EOF {
@@ -130,4 +130,17 @@ func NewProbe(config *config.Config, opts Opts) (*Probe, error) {
 	p.zeroEvent()
 
 	return p, nil
+}
+
+type ESEvent struct {
+	Event struct {
+		Exec struct {
+			Args   []string `json:"args"`
+			Target struct {
+				Executable struct {
+					Path string `json:"path"`
+				} `json:"executable"`
+			} `json:"target"`
+		} `json:"exec"`
+	} `json:"event"`
 }
