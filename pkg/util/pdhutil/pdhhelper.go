@@ -301,7 +301,7 @@ func pdhGetFormattedCounterArray(hCounter PDH_HCOUNTER, format uint32) (outItems
 		var u []uint16
 
 		// Accessing the `SliceHeader` to manipulate the `u` slice
-		hdrU := (*reflect.SliceHeader)(unsafe.Pointer(&u)) // TODO fix reflect.SliceHeader has been deprecated: Use unsafe.Slice or unsafe.SliceData instead
+		hdrU := (*reflect.SliceHeader)(unsafe.Pointer(&u)) //nolint:staticcheck // TODO fix reflect.SliceHeader has been deprecated: Use unsafe.Slice or unsafe.SliceData instead
 		hdrU.Data = uintptr(unsafe.Pointer(item.szName))
 		hdrU.Len = strBufLen / 2
 		hdrU.Cap = strBufLen / 2
