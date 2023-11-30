@@ -7,7 +7,12 @@
 package probe
 
 import (
+	"context"
+	json "encoding/json"
 	"errors"
+	"fmt"
+	"io"
+	"os/exec"
 
 	"github.com/DataDog/datadog-agent/pkg/security/config"
 	"github.com/DataDog/datadog-agent/pkg/security/probe/kfilters"
@@ -18,18 +23,64 @@ import (
 
 type DarwinProbe struct {
 	fieldHandlers *FieldHandlers
+	ctx           context.Context
+	cancelFnc     context.CancelFunc
 }
 
 func NewDarwinProbe(p *Probe, config *config.Config, opts Opts) (*DarwinProbe, error) {
+	ctx, cancelFnc := context.WithCancel(context.Background())
 	return &DarwinProbe{
 		fieldHandlers: &FieldHandlers{},
+		ctx:           ctx,
+		cancelFnc:     cancelFnc,
 	}, nil
 }
 
-func (dp *DarwinProbe) Setup() error     { return nil }
-func (dp *DarwinProbe) Init() error      { return nil }
-func (dp *DarwinProbe) Start() error     { return nil }
-func (dp *DarwinProbe) Stop()            {}
+func (dp *DarwinProbe) Setup() error { return nil }
+func (dp *DarwinProbe) Init() error  { return nil }
+func (dp *DarwinProbe) Start() error {
+	cmd := exec.Command("/usr/bin/eslogger", "exec")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+
+	decoder := json.NewDecoder(stdout)
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	go func() {
+		for {
+			select {
+			case <-dp.ctx.Done():
+				break
+			}
+		}
+
+		cmd.Process.Kill()
+		cmd.Wait()
+	}()
+
+	go func() {
+		var value interface{}
+		for {
+			err := decoder.Decode(&value)
+			if err == io.EOF {
+				break
+			}
+
+			fmt.Println(value)
+		}
+	}()
+
+	return nil
+}
+
+func (dp *DarwinProbe) Stop() {
+	dp.cancelFnc()
+}
 func (dp *DarwinProbe) SendStats() error { return nil }
 func (dp *DarwinProbe) Snapshot() error  { return nil }
 func (dp *DarwinProbe) Close() error     { return nil }
