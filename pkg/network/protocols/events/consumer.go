@@ -8,6 +8,7 @@
 package events
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"unsafe"
@@ -23,7 +24,10 @@ import (
 const (
 	batchMapSuffix  = "_batches"
 	eventsMapSuffix = "_batch_events"
+	sizeOfBatch     = int(unsafe.Sizeof(batch{}))
 )
+
+var errInvalidPerfEvent = errors.New("invalid perf event")
 
 // Consumer provides a standardized abstraction for consuming (batched) events from eBPF
 type Consumer struct {
@@ -40,11 +44,12 @@ type Consumer struct {
 	stopped     bool
 
 	// telemetry
-	metricGroup      *telemetry.MetricGroup
-	eventsCount      *telemetry.Counter
-	missesCount      *telemetry.Counter
-	kernelDropsCount *telemetry.Counter
-	batchSize        *atomic.Int64
+	metricGroup        *telemetry.MetricGroup
+	eventsCount        *telemetry.Counter
+	missesCount        *telemetry.Counter
+	kernelDropsCount   *telemetry.Counter
+	invalidEventsCount *telemetry.Counter
+	batchSize          *atomic.Int64
 }
 
 // NewConsumer instantiates a new event Consumer
@@ -85,6 +90,7 @@ func NewConsumer(proto string, ebpf *manager.Manager, callback func([]byte)) (*C
 	eventsCount := metricGroup.NewCounter("events_captured")
 	missesCount := metricGroup.NewCounter("events_missed")
 	kernelDropsCount := metricGroup.NewCounter("kernel_dropped_events")
+	invalidEventsCount := metricGroup.NewCounter("invalid_events")
 
 	return &Consumer{
 		proto:       proto,
@@ -95,11 +101,13 @@ func NewConsumer(proto string, ebpf *manager.Manager, callback func([]byte)) (*C
 		batchReader: batchReader,
 
 		// telemetry
-		metricGroup:      metricGroup,
-		eventsCount:      eventsCount,
-		missesCount:      missesCount,
-		kernelDropsCount: kernelDropsCount,
-		batchSize:        atomic.NewInt64(0),
+		metricGroup:        metricGroup,
+		eventsCount:        eventsCount,
+		missesCount:        missesCount,
+		kernelDropsCount:   kernelDropsCount,
+		invalidEventsCount: invalidEventsCount,
+
+		batchSize: atomic.NewInt64(0),
 	}, nil
 }
 
@@ -115,8 +123,12 @@ func (c *Consumer) Start() {
 					return
 				}
 
-				b := batchFromEventData(dataEvent.Data)
-				c.process(dataEvent.CPU, b, false)
+				b, err := batchFromEventData(dataEvent.Data)
+				if err == nil {
+					c.process(dataEvent.CPU, b, false)
+				} else {
+					c.invalidEventsCount.Add(1)
+				}
 				dataEvent.Done()
 			case _, ok := <-c.handler.LostChannel:
 				if !ok {
@@ -187,6 +199,12 @@ func (c *Consumer) process(cpu int, b *batch, syncing bool) {
 	}
 }
 
-func batchFromEventData(data []byte) *batch {
-	return (*batch)(unsafe.Pointer(&data[0]))
+func batchFromEventData(data []byte) (*batch, error) {
+	if len(data) != sizeOfBatch {
+		// for some reason the eBPF program sent us a perf event
+		// that doesn't match what we're expecting
+		return nil, errInvalidPerfEvent
+	}
+
+	return (*batch)(unsafe.Pointer(&data[0])), nil
 }
