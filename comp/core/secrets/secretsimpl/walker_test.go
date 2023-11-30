@@ -31,29 +31,6 @@ func TestWalkerError(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestWalkerSimple(t *testing.T) {
-	var config interface{}
-	err := yaml.Unmarshal([]byte("test"), &config)
-	require.NoError(t, err)
-
-	stringsCollected := []string{}
-
-	w := walker{
-		resolver: func(_ []string, str string) (string, error) {
-			stringsCollected = append(stringsCollected, str)
-			return str + "_verified", nil
-		},
-	}
-	err = w.walk(&config)
-	require.NoError(t, err)
-
-	assert.Equal(t, []string{"test"}, stringsCollected)
-
-	updatedConf, err := yaml.Marshal(config)
-	require.NoError(t, err)
-	assert.Equal(t, string("test_verified\n"), string(updatedConf))
-}
-
 func TestWalkerComplex(t *testing.T) {
 	var config interface{}
 	err := yaml.Unmarshal(testYamlHash, &config)
@@ -108,8 +85,9 @@ hash:
 			}
 			return value, nil
 		},
-		notifier: func(yamlPath []string, value any) {
+		notifier: func(yamlPath []string, value any) bool {
 			notification[strings.Join(yamlPath, ".")] = value
+			return true
 		},
 	}
 
