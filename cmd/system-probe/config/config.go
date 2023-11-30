@@ -73,11 +73,6 @@ func New(configPath string) (*Config, error) {
 }
 
 func newSysprobeConfig(configPath string) (*Config, error) {
-	// System probe is not supported on darwin, so we should fail gracefully in this case.
-	if runtime.GOOS == "darwin" {
-		return &Config{}, nil
-	}
-
 	aconfig.SystemProbe.SetConfigName("system-probe")
 	// set the paths where a config file is expected
 	if len(configPath) != 0 {
