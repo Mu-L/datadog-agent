@@ -19,9 +19,11 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/rules"
+	"github.com/DataDog/datadog-agent/pkg/security/serializers"
 )
 
 type DarwinProbe struct {
+	probe         *Probe
 	fieldHandlers *FieldHandlers
 	ctx           context.Context
 	cancelFnc     context.CancelFunc
@@ -30,6 +32,7 @@ type DarwinProbe struct {
 func NewDarwinProbe(p *Probe, config *config.Config, opts Opts) (*DarwinProbe, error) {
 	ctx, cancelFnc := context.WithCancel(context.Background())
 	return &DarwinProbe{
+		probe:         p,
 		fieldHandlers: &FieldHandlers{},
 		ctx:           ctx,
 		cancelFnc:     cancelFnc,
@@ -72,10 +75,37 @@ func (dp *DarwinProbe) Start() error {
 			}
 
 			fmt.Println(value)
+			dp.pushEvent(&value)
 		}
 	}()
 
 	return nil
+}
+
+func (dp *DarwinProbe) pushEvent(esev *ESEvent) {
+	event := dp.probe.zeroEvent()
+	event.Type = uint32(model.ExecEventType)
+	event.Exec.Process = &model.Process{
+		FileEvent: model.FileEvent{
+			PathnameStr: esev.Event.Exec.Target.Executable.Path,
+		},
+	}
+
+	dp.DispatchEvent(event)
+}
+
+// DispatchEvent sends an event to the probe event handler
+func (dp *DarwinProbe) DispatchEvent(event *model.Event) {
+	traceEvent("Dispatching event %s", func() ([]byte, model.EventType, error) {
+		eventJSON, err := serializers.MarshalEvent(event)
+		return eventJSON, event.GetEventType(), err
+	})
+
+	// send event to wildcard handlers, like the CWS rule engine, first
+	dp.probe.sendEventToWildcardHandlers(event)
+
+	// send event to specific event handlers, like the event monitor consumers, subsequently
+	dp.probe.sendEventToSpecificEventTypeHandlers(event)
 }
 
 func (dp *DarwinProbe) Stop() {
