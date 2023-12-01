@@ -85,12 +85,14 @@ func (dp *DarwinProbe) Start() error {
 func (dp *DarwinProbe) pushEvent(esev *ESEvent) {
 	event := dp.probe.zeroEvent()
 	event.Type = uint32(model.ExecEventType)
-	event.Exec.Process = &model.Process{
+	mp := &model.Process{
 		FileEvent: model.FileEvent{
 			PathnameStr: esev.Event.Exec.Target.Executable.Path,
 		},
+		Argv: esev.Event.Exec.Args,
 	}
-
+	event.Exec.Process = mp
+	event.ProcessContext = &model.ProcessContext{Process: *mp}
 	dp.DispatchEvent(event)
 }
 
