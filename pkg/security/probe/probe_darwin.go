@@ -86,6 +86,9 @@ func (dp *DarwinProbe) pushEvent(esev *ESEvent) {
 	event := dp.probe.zeroEvent()
 	event.Type = uint32(model.ExecEventType)
 	mp := &model.Process{
+		PIDContext: model.PIDContext{
+			Pid: esev.Event.Exec.Target.AuditToken.Pid,
+		},
 		FileEvent: model.FileEvent{
 			PathnameStr: esev.Event.Exec.Target.Executable.Path,
 		},
@@ -169,6 +172,9 @@ type ESEvent struct {
 		Exec struct {
 			Args   []string `json:"args"`
 			Target struct {
+				AuditToken struct {
+					Pid uint32 `json:"pid"`
+				} `json:"audit_token"`
 				Executable struct {
 					Path string `json:"path"`
 				} `json:"executable"`

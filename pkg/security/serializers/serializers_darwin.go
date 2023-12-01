@@ -81,8 +81,6 @@ func newProcessSerializer(ps *model.Process, e *model.Event) *ProcessSerializer 
 }
 
 func newProcessContextSerializer(pc *model.ProcessContext, e *model.Event) *ProcessContextSerializer {
-	// TODO(paulcacheux): use real pid
-	pc.Pid = 42
 	if pc == nil || pc.Pid == 0 || e == nil {
 		return nil
 	}
