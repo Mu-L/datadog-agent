@@ -39,6 +39,7 @@ type EBPFLessProbe struct {
 
 	// internals
 	ebpfless.UnimplementedSyscallMsgStreamServer
+	event         *model.Event
 	server        *grpc.Server
 	seqNum        uint64
 	probe         *Probe
@@ -54,7 +55,7 @@ func (p *EBPFLessProbe) SendSyscallMsg(_ context.Context, syscallMsg *ebpfless.S
 	}
 	p.seqNum++
 
-	event := p.probe.zeroEvent()
+	event := p.zeroEvent()
 
 	switch syscallMsg.Type {
 	case ebpfless.SyscallType_Exec:
@@ -211,6 +212,13 @@ func (p *EBPFLessProbe) GetEventTags(containerID string) []string {
 	return p.Resolvers.TagsResolver.Resolve(containerID)
 }
 
+func (p *EBPFLessProbe) zeroEvent() *model.Event {
+	p.event.Zero()
+	p.event.FieldHandlers = p.fieldHandlers
+	p.event.Source = "ebpfless"
+	return p.event
+}
+
 // NewEBPFLessProbe returns a new eBPF less probe
 func NewEBPFLessProbe(probe *Probe, config *config.Config, opts Opts) (*EBPFLessProbe, error) {
 	opts.normalize()
@@ -241,6 +249,11 @@ func NewEBPFLessProbe(probe *Probe, config *config.Config, opts Opts) (*EBPFLess
 	}
 
 	p.fieldHandlers = &EBPFLessFieldHandlers{resolvers: p.Resolvers}
+
+	p.event = p.NewEvent()
+
+	// be sure to zero the probe event before everything else
+	p.zeroEvent()
 
 	return p, nil
 }
