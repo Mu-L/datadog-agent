@@ -207,17 +207,17 @@ func (p *Probe) sendEventToSpecificEventTypeHandlers(event *model.Event) {
 }
 
 func traceEvent(fmt string, marshaller func() ([]byte, model.EventType, error)) {
-	if !seclog.DefaultLogger.IsTracing() {
-		return
-	}
+	// if !seclog.DefaultLogger.IsTracing() {
+	//	return
+	// }
 
-	eventJSON, eventType, err := marshaller()
+	eventJSON, _, err := marshaller()
 	if err != nil {
-		seclog.DefaultLogger.TraceTagf(eventType, fmt, err)
+		seclog.DefaultLogger.Errorf(fmt, err)
 		return
 	}
 
-	seclog.DefaultLogger.TraceTagf(eventType, fmt, string(eventJSON))
+	seclog.DefaultLogger.Infof(fmt, string(eventJSON))
 }
 
 // AddDiscarderPushedCallback add a callback to the list of func that have to be called when a discarder is pushed to kernel
