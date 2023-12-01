@@ -10,7 +10,6 @@ import (
 	"context"
 	json "encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"os/exec"
 
@@ -74,7 +73,6 @@ func (dp *DarwinProbe) Start() error {
 				break
 			}
 
-			fmt.Println(value)
 			dp.pushEvent(&value)
 		}
 	}()
