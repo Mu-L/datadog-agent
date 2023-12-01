@@ -37,6 +37,8 @@ func (p *Payload) MarshalJSON() ([]byte, error) {
 //
 // In this case, the payload can only be split at the top level, so `times` is ignored
 // and each top-level component is returned as a distinct payload.
+//
+//nolint:revive // TODO(ASC) Fix revive linter
 func (p *Payload) SplitPayload(times int) ([]marshaler.AbstractMarshaler, error) {
 	return nil, fmt.Errorf("could not split inventories payload any more, payload is too big for intake")
 }

@@ -5,6 +5,7 @@
 
 //go:build python
 
+//nolint:revive // TODO(ASC) Fix revive linter
 package main
 
 import (

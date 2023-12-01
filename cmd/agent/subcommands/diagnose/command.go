@@ -217,6 +217,8 @@ func cmdDiagnose(cliParams *cliParams, senderManager diagnosesendermanager.Compo
 }
 
 // NOTE: This and related will be moved to separate "agent telemetry" command in future
+//
+//nolint:revive // TODO(ASC) Fix revive linter
 func printPayload(log log.Component, config config.Component, cliParams *cliParams) error {
 	if err := util.SetAuthToken(); err != nil {
 		fmt.Println(err)

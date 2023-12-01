@@ -45,10 +45,12 @@ type mockScheduler struct {
 	lastSendNowDelay time.Duration
 }
 
+//nolint:revive // TODO(ASC) Fix revive linter
 func (m *mockScheduler) AddCollector(name string, interval time.Duration) error {
 	return nil
 }
 
+//nolint:revive // TODO(ASC) Fix revive linter
 func (m *mockScheduler) TriggerAndResetCollectorTimer(name string, delay time.Duration) {
 	m.lastSendNowDelay = delay
 	m.sendNowCalled <- nil
