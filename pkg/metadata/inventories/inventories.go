@@ -47,9 +47,11 @@ var (
 	metadataUpdatedC = make(chan interface{}, 1)
 
 	// The inventory payload might be generated once per minute. We don't want to
-	logCount  = 0
+	logCount = 0
+	//nolint:unused // TODO(ASC) Fix unused linter
 	logErrorf = log.Errorf
-	logInfof  = log.Infof
+	//nolint:unused // TODO(ASC) Fix unused linter
+	logInfof = log.Infof
 )
 
 var (

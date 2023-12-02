@@ -40,22 +40,24 @@ L:
 	}
 }
 
+//nolint:unused // TODO(ASC) Fix unused linter
 type mockScheduler struct {
 	sendNowCalled    chan interface{}
 	lastSendNowDelay time.Duration
 }
 
-//nolint:revive // TODO(ASC) Fix revive linter
+//nolint:revive,unused // TODO(ASC) Fix revive linter // TODO(ASC) Fix unused linter
 func (m *mockScheduler) AddCollector(name string, interval time.Duration) error {
 	return nil
 }
 
-//nolint:revive // TODO(ASC) Fix revive linter
+//nolint:revive,unused // TODO(ASC) Fix revive linter // TODO(ASC) Fix unused linter
 func (m *mockScheduler) TriggerAndResetCollectorTimer(name string, delay time.Duration) {
 	m.lastSendNowDelay = delay
 	m.sendNowCalled <- nil
 }
 
+//nolint:unused // TODO(ASC) Fix unused linter
 func waitForCalledSignal(calledSignal chan interface{}) bool {
 	select {
 	case <-calledSignal:
