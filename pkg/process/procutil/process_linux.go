@@ -661,7 +661,7 @@ func (p *probe) parseStatContent(statContent []byte, sInfo *statInfo, pid int32,
 			}
 			prevCharIsSpace = true
 			continue
-		} else {
+		} else { //nolint:revive // TODO(PROC) Fix revive linter
 			buffer = append(buffer, c)
 			prevCharIsSpace = false
 		}
@@ -750,6 +750,8 @@ func (p *probe) getLinkWithAuthCheck(pidPath string, file string) string {
 }
 
 // PROC_SUPER_MAGIC is the superblock magic value (its unique identifier) of procfs filesystem
+//
+//nolint:revive // TODO(PROC) Fix revive linter
 const PROC_SUPER_MAGIC = 0x9fa0
 
 // getFDCount gets num_fds from /proc/(pid)/fd WITHOUT using the native Readdirnames(),
