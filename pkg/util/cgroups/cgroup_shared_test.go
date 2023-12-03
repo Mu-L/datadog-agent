@@ -18,3 +18,11 @@ func TestCPUSetParsing(t *testing.T) {
 	assert.EqualValues(t, ParseCPUSetFormat("1"), 1)
 	assert.EqualValues(t, ParseCPUSetFormat("2-3"), 2)
 }
+
+func BenchmarkCPUSetParsing(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ParseCPUSetFormat("0,1,5-8")
+		ParseCPUSetFormat("1")
+		ParseCPUSetFormat("2-3")
+	}
+}
