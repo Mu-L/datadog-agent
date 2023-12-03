@@ -9,7 +9,6 @@ package cgroups
 
 import (
 	"strconv"
-	"strings"
 )
 
 const (
@@ -23,16 +22,39 @@ const (
 // The function returns the count of CPUs, in this case 6.
 func ParseCPUSetFormat(line string) uint64 {
 	var numCPUs uint64
+	lineRaw := []byte(line)
 
-	lineSlice := strings.Split(line, ",")
-	for _, l := range lineSlice {
-		lineParts := strings.Split(l, "-")
-		if len(lineParts) == 2 {
-			p0, _ := strconv.Atoi(lineParts[0])
-			p1, _ := strconv.Atoi(lineParts[1])
-			numCPUs += uint64(p1 - p0 + 1)
-		} else if len(lineParts) == 1 {
-			numCPUs++
+	var p0, p1 uint64
+	var hyphenated bool
+
+	for i, v := range lineRaw {
+		if v == byte('-') {
+			hyphenated = true
+			continue
+		}
+
+		if v != byte(',') {
+			val, _ := strconv.Atoi(string(v))
+
+			if hyphenated {
+				p1 *= 10
+				p1 += uint64(val)
+			} else {
+				p0 *= 10
+				p0 += uint64(val)
+			}
+		}
+
+		// add to cpu count there is a comma or this is the last cpu value
+		if v == byte(',') || i == len(lineRaw)-1 {
+			if hyphenated {
+				numCPUs += p1 - p0 + 1
+			} else {
+				numCPUs++
+			}
+			// reset
+			p0, p1 = 0, 0
+			hyphenated = false
 		}
 	}
 
