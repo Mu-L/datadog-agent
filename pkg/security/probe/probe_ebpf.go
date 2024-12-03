@@ -194,11 +194,31 @@ func (p *EBPFProbe) selectFentryMode() {
 		return
 	}
 
-	supported := p.kernelVersion.HaveFentrySupport()
-	if !supported {
-		seclog.Errorf("fentry enabled but not supported, falling back to kprobe mode")
+	if p.kernelVersion.Code < kernel.Kernel6_1 {
+		p.useFentry = false
+		seclog.Warnf("fentry enabled but not fully supported on this kernel version (< 6.1), falling back to kprobe mode")
+		return
 	}
-	p.useFentry = supported
+
+	if !p.kernelVersion.HaveFentrySupport() {
+		p.useFentry = false
+		seclog.Errorf("fentry enabled but not supported, falling back to kprobe mode")
+		return
+	}
+
+	if !p.kernelVersion.HaveFentrySupportWithStructArgs() {
+		p.useFentry = false
+		seclog.Warnf("fentry enabled but not supported with struct args, falling back to kprobe mode")
+		return
+	}
+
+	if !p.kernelVersion.HaveFentryNoDuplicatedWeakSymbols() {
+		p.useFentry = false
+		seclog.Warnf("fentry enabled but not supported with duplicated weak symbols, falling back to kprobe mode")
+		return
+	}
+
+	p.useFentry = true
 }
 
 func (p *EBPFProbe) isNetworkNotSupported() bool {
@@ -810,7 +830,11 @@ func (p *EBPFProbe) handleEvent(CPU int, data []byte) {
 		if pce != nil {
 			path, err := p.Resolvers.DentryResolver.Resolve(event.CgroupWrite.File.PathKey, true)
 			if err == nil && path != "" {
-				cgroupID := containerutils.CGroupID(filepath.Dir(string(path)))
+				if !p.kernelVersion.IsRH7Kernel() {
+					path = filepath.Dir(string(path))
+				}
+
+				cgroupID := containerutils.CGroupID(path)
 				pce.CGroup.CGroupID = cgroupID
 				pce.Process.CGroup.CGroupID = cgroupID
 				cgroupFlags := containerutils.CGroupFlags(event.CgroupWrite.CGroupFlags)
@@ -1086,23 +1110,15 @@ func (p *EBPFProbe) handleEvent(CPU int, data []byte) {
 			pidToResolve := event.PTrace.PID
 
 			if pidToResolve == 0 { // resolve the PID given as argument instead
-				if event.ContainerContext.ContainerID == "" {
+				containerID := p.fieldHandlers.ResolveContainerID(event, event.ContainerContext)
+				if containerID == "" && event.PTrace.Request != unix.PTRACE_ATTACH {
 					pidToResolve = event.PTrace.NSPID
 				} else {
-					// 1. get the pid namespace of the tracer
-					ns, err := utils.GetProcessPidNamespace(event.ProcessContext.Process.Pid)
+					pid, err := utils.TryToResolveTraceePid(event.ProcessContext.Process.Pid, event.PTrace.NSPID)
 					if err != nil {
-						seclog.Errorf("Failed to resolve PID namespace: %v", err)
+						seclog.Errorf("PTrace err: %v", err)
 						return
 					}
-
-					// 2. find the host pid matching the arg pid with he tracer namespace
-					pid, err := utils.FindPidNamespace(event.PTrace.NSPID, ns)
-					if err != nil {
-						seclog.Warnf("Failed to resolve tracee PID namespace: %v", err)
-						return
-					}
-
 					pidToResolve = pid
 				}
 			}
