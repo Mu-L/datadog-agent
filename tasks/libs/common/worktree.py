@@ -5,6 +5,7 @@ Common environment variables that can be used:
 """
 
 import os
+import sys
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -27,7 +28,7 @@ def init_env(ctx, branch: str | None = None):
     """
 
     if not WORKTREE_DIRECTORY.is_dir():
-        print(f'{color_message("Info", Color.BLUE)}: Cloning datadog agent into {WORKTREE_DIRECTORY}')
+        print(f'{color_message("Info", Color.BLUE)}: Cloning datadog agent into {WORKTREE_DIRECTORY}', file=sys.stderr)
         remote = ctx.run("git remote get-url origin", hide=True).stdout.strip()
         # Try to use this option to reduce cloning time
         if all(
@@ -63,7 +64,7 @@ def remove_env(ctx):
 def is_worktree():
     """Will return True if the current environment is a worktree environment."""
 
-    return Path.cwd() == WORKTREE_DIRECTORY
+    return Path.cwd().resolve() == WORKTREE_DIRECTORY.resolve()
 
 
 def enter_env(ctx, branch: str | None, skip_checkout=False):
